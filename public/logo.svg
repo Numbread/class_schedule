@@ -1,0 +1,28 @@
+<svg width="200" height="50" viewBox="0 0 200 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Calendar Icon -->
+  <rect x="2" y="6" width="38" height="38" rx="4" fill="#7F1D1D"/>
+  <rect x="2" y="6" width="38" height="10" rx="4" fill="#991B1B"/>
+  <rect x="10" y="2" width="3" height="8" rx="1.5" fill="#FEF2F2"/>
+  <rect x="29" y="2" width="3" height="8" rx="1.5" fill="#FEF2F2"/>
+  
+  <!-- Schedule grid -->
+  <rect x="7" y="20" width="28" height="1.5" rx="0.75" fill="#FEF2F2" opacity="0.3"/>
+  <rect x="7" y="27" width="28" height="1.5" rx="0.75" fill="#FEF2F2" opacity="0.3"/>
+  <rect x="7" y="34" width="28" height="1.5" rx="0.75" fill="#FEF2F2" opacity="0.3"/>
+  
+  <!-- Schedule blocks -->
+  <rect x="8" y="21" width="7" height="4" rx="1" fill="#FEF2F2"/>
+  <rect x="18" y="21" width="10" height="4" rx="1" fill="#FECACA"/>
+  <rect x="8" y="28" width="12" height="4" rx="1" fill="#FECACA"/>
+  <rect x="23" y="28" width="8" height="4" rx="1" fill="#FEF2F2"/>
+  <rect x="8" y="35" width="8" height="4" rx="1" fill="#FEF2F2"/>
+  <rect x="19" y="35" width="12" height="4" rx="1" fill="#FECACA"/>
+  
+  <!-- Clock -->
+  <circle cx="35" cy="38" r="7" fill="#FBBF24" stroke="#7F1D1D" stroke-width="1.5"/>
+  <path d="M35 34V38L37.5 39.5" stroke="#7F1D1D" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- Text: MU Scheduler -->
+  <text x="48" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#7F1D1D">MU Scheduler</text>
+  <text x="48" y="36" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#991B1B">Class Management</text>
+</svg>

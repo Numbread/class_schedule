@@ -173,6 +173,16 @@ export default function ScheduleShow({ schedule, entriesByDay, rooms, timeSlots 
         return name;
     };
 
+    const getTimeLabel = (startTime: string) => {
+        const slot = timeSlots.find(
+            (s) => s.start_time.substring(0, 5) === startTime
+        );
+        if (slot) {
+            return `${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`;
+        }
+        return formatTime(startTime);
+    };
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Scheduling', href: '/scheduling' },

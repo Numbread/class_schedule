@@ -93,16 +93,19 @@ export function AppSidebar() {
                 icon: DoorOpen,
             },
             {
-                title: 'Buildings',
-                href: '/buildings',
-                icon: Building,
-            },
-            {
                 title: 'Time Slots',
                 href: '/time-slots',
                 icon: Clock,
             }
         );
+    }
+
+    if (user.user_type === 'admin') {
+        facilityItems.push({
+            title: 'Buildings',
+            href: '/buildings',
+            icon: Building,
+        });
     }
 
     // Scheduling Group

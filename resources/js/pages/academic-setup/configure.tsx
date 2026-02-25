@@ -351,6 +351,7 @@ export default function ConfigureAcademicSetup({
             user_id: number;
             max_units: number;
             preferred_day_off: string | null;
+            preferred_day_off_time: 'morning' | 'afternoon' | 'wholeday' | null;
             preferred_time_period: string | null;
         }>;
     }>({
@@ -359,6 +360,7 @@ export default function ConfigureAcademicSetup({
                 user_id: f.user_id,
                 max_units: f.max_units,
                 preferred_day_off: f.preferred_day_off || null,
+                preferred_day_off_time: f.preferred_day_off_time as 'morning' | 'afternoon' | 'wholeday' | null || 'wholeday',
                 preferred_time_period: f.preferred_time_period || null,
             })) || [],
     });
@@ -638,6 +640,7 @@ export default function ConfigureAcademicSetup({
                     user_id: userId,
                     max_units: 24,
                     preferred_day_off: null,
+                    preferred_day_off_time: 'wholeday',
                     preferred_time_period: null,
                 },
             ]);
@@ -1315,9 +1318,8 @@ export default function ConfigureAcademicSetup({
             <div className="flex h-full flex-1 flex-col gap-6 p-6 pb-20">
                 {/* Floating Header */}
                 <div
-                    className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-6 py-3 transition-transform duration-300 md:left-64 ${
-                        showFloatingHeader ? 'translate-y-0 shadow-sm' : '-translate-y-full'
-                    }`}
+                    className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-6 py-3 transition-transform duration-300 md:left-64 ${showFloatingHeader ? 'translate-y-0 shadow-sm' : '-translate-y-full'
+                        }`}
                 >
                     <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
                         <div className="flex items-center gap-4">
@@ -1330,12 +1332,12 @@ export default function ConfigureAcademicSetup({
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
-                             <Badge variant={currentYearLevel.is_configured ? 'default' : 'secondary'}>
+                            <Badge variant={currentYearLevel.is_configured ? 'default' : 'secondary'}>
                                 {currentYearLevel.is_configured ? 'Done' : 'Pending'}
                             </Badge>
-                             <Button size="sm" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                            <Button size="sm" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                                 Scroll to Top
-                             </Button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -1430,9 +1432,6 @@ export default function ConfigureAcademicSetup({
                         </TabsTrigger>
                         <TabsTrigger value="assignments">
                             Assignments
-                        </TabsTrigger>
-                        <TabsTrigger value="facilities">
-                            Facilities
                         </TabsTrigger>
                     </TabsList>
 
@@ -1741,13 +1740,12 @@ export default function ConfigureAcademicSetup({
                                                                                                 return (
                                                                                                     <div
                                                                                                         key={ps.id}
-                                                                                                        className={`flex items-center gap-2 rounded-md border p-2 text-xs cursor-pointer transition-colors ${
-                                                                                                            isAdded
-                                                                                                                ? 'bg-muted/30 border-muted opacity-50'
-                                                                                                                : isSelectedForParallel
-                                                                                                                    ? 'bg-primary/10 border-primary/50'
-                                                                                                                    : 'hover:bg-muted/50'
-                                                                                                        }`}
+                                                                                                        className={`flex items-center gap-2 rounded-md border p-2 text-xs cursor-pointer transition-colors ${isAdded
+                                                                                                            ? 'bg-muted/30 border-muted opacity-50'
+                                                                                                            : isSelectedForParallel
+                                                                                                                ? 'bg-primary/10 border-primary/50'
+                                                                                                                : 'hover:bg-muted/50'
+                                                                                                            }`}
                                                                                                         onClick={() => {
                                                                                                             if (!isAdded) {
                                                                                                                 toggleParallelSelection(ps, prospectus);
@@ -2079,12 +2077,6 @@ export default function ConfigureAcademicSetup({
                                     <h3 className="font-semibold">
                                         Selected Subjects
                                     </h3>
-                                    <Button
-                                        onClick={saveSubjects}
-                                        disabled={subjectForm.processing}
-                                    >
-                                        Save Subjects
-                                    </Button>
                                 </div>
                                 <div className="max-h-100 space-y-3 overflow-y-auto">
                                     {groupedSubjectsList.map((group) => {
@@ -2487,12 +2479,17 @@ export default function ConfigureAcademicSetup({
                                             </div>
                                         );
                                     })}
-                                    {subjectForm.data.subjects.length === 0 && (
-                                        <p className="py-4 text-center text-muted-foreground">
-                                            No subjects added yet
-                                        </p>
-                                    )}
                                 </div>
+                                {subjectForm.data.subjects.length > 0 && (
+                                    <div className="mt-4 flex justify-end gap-2 border-t pt-4">
+                                        <Button
+                                            onClick={saveSubjects}
+                                            disabled={subjectForm.processing}
+                                        >
+                                            Save Subjects
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </TabsContent>
@@ -2565,12 +2562,6 @@ export default function ConfigureAcademicSetup({
                                     <h3 className="font-semibold">
                                         Assigned Faculty
                                     </h3>
-                                    <Button
-                                        onClick={saveFaculty}
-                                        disabled={facultyForm.processing}
-                                    >
-                                        Save Faculty
-                                    </Button>
                                 </div>
                                 <p className="mb-3 text-xs text-muted-foreground">
                                     Faculty assigned here are available for all
@@ -2640,7 +2631,7 @@ export default function ConfigureAcademicSetup({
                                                         </div>
                                                         <div className="space-y-1">
                                                             <Label className="text-xs">
-                                                                Day Off
+                                                                No class
                                                             </Label>
                                                             <Select
                                                                 value={
@@ -2741,17 +2732,68 @@ export default function ConfigureAcademicSetup({
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
+                                                        {fac.preferred_day_off && (
+                                                            <div className="space-y-1">
+                                                                <Label className="text-xs">
+                                                                    No class Time
+                                                                </Label>
+                                                                <Select
+                                                                    value={
+                                                                        fac.preferred_day_off_time ||
+                                                                        'wholeday'
+                                                                    }
+                                                                    onValueChange={(
+                                                                        value,
+                                                                    ) => {
+                                                                        const newFaculty =
+                                                                            [
+                                                                                ...facultyForm
+                                                                                    .data
+                                                                                    .faculty,
+                                                                            ];
+                                                                        // Type cast to match the interface since we know the value comes from our fixed options
+                                                                        newFaculty[
+                                                                            index
+                                                                        ].preferred_day_off_time = value as 'morning' | 'afternoon' | 'wholeday';
+                                                                        facultyForm.setData(
+                                                                            'faculty',
+                                                                            newFaculty,
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <SelectTrigger className="h-8">
+                                                                        <SelectValue placeholder="Whole Day" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="wholeday">
+                                                                            Whole Day
+                                                                        </SelectItem>
+                                                                        <SelectItem value="morning">
+                                                                            Morning Only
+                                                                        </SelectItem>
+                                                                        <SelectItem value="afternoon">
+                                                                            Afternoon Only
+                                                                        </SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             );
                                         },
                                     )}
-                                    {facultyForm.data.faculty.length === 0 && (
-                                        <p className="py-4 text-center text-muted-foreground">
-                                            No faculty assigned yet
-                                        </p>
-                                    )}
                                 </div>
+                                {facultyForm.data.faculty.length > 0 && (
+                                    <div className="mt-4 flex justify-end gap-2 border-t pt-4">
+                                        <Button
+                                            onClick={saveFaculty}
+                                            disabled={facultyForm.processing}
+                                        >
+                                            Save Faculty
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </TabsContent>
@@ -2770,12 +2812,6 @@ export default function ConfigureAcademicSetup({
                                         different instructors.
                                     </p>
                                 </div>
-                                <Button
-                                    onClick={saveAssignments}
-                                    disabled={assignmentForm.processing}
-                                >
-                                    Save Assignments
-                                </Button>
                             </div>
 
                             {currentYearLevel.subjects &&
@@ -3141,124 +3177,20 @@ export default function ConfigureAcademicSetup({
                                     </p>
                                 </div>
                             )}
-                        </div>
-                    </TabsContent>
-
-                    {/* Facilities Tab */}
-                    <TabsContent value="facilities" className="flex-1">
-                        <div className="rounded-lg border bg-card p-4">
-                            <div className="mb-4">
-                                <h3 className="font-semibold">
-                                    Facilities & Rooms
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Select which buildings and rooms will be used for this academic setup.
-                                    If no specific rooms are selected, all rooms from selected buildings will be available.
-                                </p>
-                            </div>
-
-                            {buildings.length > 0 ? (
-                                <div className="space-y-6">
-                                    {buildings.map((building) => {
-                                        const isSelected = setup.buildings?.some(b => b.id === building.id);
-                                        const selectedRoomIds = setup.selected_rooms?.map(r => r.id) || [];
-
-                                        return (
-                                            <div key={building.id} className="border rounded-lg p-4">
-                                                <div className="flex items-center gap-3 mb-3">
-                                                    <Checkbox
-                                                        id={`building-${building.id}`}
-                                                        checked={isSelected}
-                                                        onCheckedChange={(checked) => {
-                                                            const currentBuildingIds = setup.buildings?.map(b => b.id) || [];
-                                                            const newBuildingIds = checked
-                                                                ? [...currentBuildingIds, building.id]
-                                                                : currentBuildingIds.filter(id => id !== building.id);
-
-                                                            router.post(`/academic-setup/${setup.id}/facilities`, {
-                                                                building_ids: newBuildingIds,
-                                                                room_ids: selectedRoomIds,
-                                                            }, { preserveScroll: true });
-                                                        }}
-                                                    />
-                                                    <Label htmlFor={`building-${building.id}`} className="cursor-pointer">
-                                                        <span className="font-semibold text-lg">{building.code}</span>
-                                                        <span className="text-muted-foreground ml-2">- {building.name}</span>
-                                                    </Label>
-                                                    <Badge variant="outline" className="ml-auto">
-                                                        {building.rooms?.length || 0} rooms
-                                                    </Badge>
-                                                </div>
-
-                                                {isSelected && (building.rooms?.length || 0) > 0 && (
-                                                    <div className="ml-6 mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                                        {building.rooms?.map((room) => {
-                                                            const isRoomSelected = selectedRoomIds.includes(room.id);
-                                                            return (
-                                                                <div
-                                                                    key={room.id}
-                                                                    className={`flex items-center gap-2 p-2 rounded border ${isRoomSelected ? 'border-primary bg-primary/5' : 'border-muted'
-                                                                        }`}
-                                                                >
-                                                                    <Checkbox
-                                                                        id={`room-${room.id}`}
-                                                                        checked={isRoomSelected}
-                                                                        onCheckedChange={(checked) => {
-                                                                            const currentBuildingIds = setup.buildings?.map(b => b.id) || [];
-                                                                            const newRoomIds = checked
-                                                                                ? [...selectedRoomIds, room.id]
-                                                                                : selectedRoomIds.filter(id => id !== room.id);
-
-                                                                            router.post(`/academic-setup/${setup.id}/facilities`, {
-                                                                                building_ids: currentBuildingIds,
-                                                                                room_ids: newRoomIds,
-                                                                            }, { preserveScroll: true });
-                                                                        }}
-                                                                    />
-                                                                    <Label htmlFor={`room-${room.id}`} className="cursor-pointer flex-1 text-sm">
-                                                                        <span className="font-medium">{room.name}</span>
-                                                                        <span className="text-muted-foreground text-xs block">
-                                                                            {room.room_type} • {room.capacity} seats
-                                                                        </span>
-                                                                    </Label>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-
-                                    {/* Summary */}
-                                    <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                                        <p className="text-sm">
-                                            <strong>Selected Buildings:</strong>{' '}
-                                            {setup.buildings && setup.buildings.length > 0
-                                                ? setup.buildings.map(b => b.code).join(', ')
-                                                : 'None (will use all available rooms)'}
-                                        </p>
-                                        {setup.selected_rooms && setup.selected_rooms.length > 0 && (
-                                            <p className="text-sm mt-1">
-                                                <strong>Specific Rooms:</strong>{' '}
-                                                {setup.selected_rooms.map(r => r.name).join(', ')}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="py-8 text-center text-muted-foreground">
-                                    <p>No buildings available.</p>
-                                    <p className="text-sm mt-1">
-                                        Please create buildings and assign rooms first.
-                                    </p>
-                                    <Button variant="outline" className="mt-4" asChild>
-                                        <Link href="/buildings">Manage Buildings</Link>
+                            {currentYearLevel.subjects && currentYearLevel.subjects.length > 0 && (
+                                <div className="mt-6 flex justify-end gap-2 border-t pt-4">
+                                    <Button
+                                        onClick={saveAssignments}
+                                        disabled={assignmentForm.processing}
+                                    >
+                                        Save Assignments
                                     </Button>
                                 </div>
                             )}
                         </div>
                     </TabsContent>
+
+
                 </Tabs>
 
                 {/* Complete Button */}
@@ -3566,11 +3498,10 @@ export default function ConfigureAcademicSetup({
                                         return (
                                             <div
                                                 key={itemKey}
-                                                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                                                    isSelected
-                                                        ? 'border-primary bg-primary/10'
-                                                        : 'hover:bg-muted/50'
-                                                }`}
+                                                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${isSelected
+                                                    ? 'border-primary bg-primary/10'
+                                                    : 'hover:bg-muted/50'
+                                                    }`}
                                                 onClick={() => {
                                                     setParallelSubjectDialog(prev => ({
                                                         ...prev,
@@ -3612,11 +3543,10 @@ export default function ConfigureAcademicSetup({
                                     <Label className="text-sm font-medium">Schedule Mode</Label>
                                     <div className="grid gap-2">
                                         <div
-                                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                                                parallelSubjectDialog.mode === 'separate'
-                                                    ? 'border-primary bg-primary/10'
-                                                    : 'hover:bg-muted/50'
-                                            }`}
+                                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${parallelSubjectDialog.mode === 'separate'
+                                                ? 'border-primary bg-primary/10'
+                                                : 'hover:bg-muted/50'
+                                                }`}
                                             onClick={() => setParallelSubjectDialog(prev => ({ ...prev, mode: 'separate' }))}
                                         >
                                             <Unlink className="mt-0.5 h-5 w-5 shrink-0" />
@@ -3628,11 +3558,10 @@ export default function ConfigureAcademicSetup({
                                             </div>
                                         </div>
                                         <div
-                                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                                                parallelSubjectDialog.mode === 'parallel'
-                                                    ? 'border-primary bg-primary/10'
-                                                    : 'hover:bg-muted/50'
-                                            }`}
+                                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${parallelSubjectDialog.mode === 'parallel'
+                                                ? 'border-primary bg-primary/10'
+                                                : 'hover:bg-muted/50'
+                                                }`}
                                             onClick={() => setParallelSubjectDialog(prev => ({ ...prev, mode: 'parallel' }))}
                                         >
                                             <Link2 className="mt-0.5 h-5 w-5 shrink-0" />
@@ -3864,6 +3793,6 @@ export default function ConfigureAcademicSetup({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </AppLayout>
+        </AppLayout >
     );
 }

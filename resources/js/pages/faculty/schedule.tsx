@@ -131,7 +131,7 @@ export default function FacultySchedule({
     );
     const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
-    const currentSchedule = useMemo(() => 
+    const currentSchedule = useMemo(() =>
         schedules.find(s => s.id.toString() === selectedScheduleId) || schedules[0],
         [schedules, selectedScheduleId]
     );
@@ -168,15 +168,13 @@ export default function FacultySchedule({
 
     // Helper to find ending time for a start time (for display label)
     const getTimeLabel = (startTime: string) => {
-        // Find any slot with this start time to get the end time
-        // Preference to the one matching the entry if exists, but generic slot is fine
         const slot = timeSlots.find(
             (s) => s.start_time.substring(0, 5) === startTime
         );
         if (slot) {
-            return `${startTime} - ${slot.end_time.substring(0, 5)}`;
+            return `${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`;
         }
-        return startTime;
+        return formatTime(startTime);
     };
 
     // Change Request State
@@ -541,461 +539,461 @@ export default function FacultySchedule({
                     </Card>
                 ) : (
                     <div className="rounded-md border shadow-sm overflow-hidden bg-background">
-                    <Table className="border-collapse">
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="sticky left-0 top-0 z-20 bg-muted/50 border-b border-r px-4 py-3 text-center text-sm font-semibold w-24 min-w-[100px] h-auto text-foreground">
-                                            Time
+                        <Table className="border-collapse">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="sticky left-0 top-0 z-20 bg-muted/50 border-b border-r px-4 py-3 text-center text-sm font-semibold w-24 min-w-[100px] h-auto text-foreground">
+                                        Time
+                                    </TableHead>
+                                    {DAYS.map((day) => (
+                                        <TableHead
+                                            key={day.value}
+                                            className="min-w-[160px] border-b border-r px-4 py-3 text-center text-sm font-semibold last:border-r-0 bg-muted/50 h-auto text-foreground"
+                                        >
+                                            {day.label}
                                         </TableHead>
-                                        {DAYS.map((day) => (
-                                            <TableHead
-                                                key={day.value}
-                                                className="min-w-[160px] border-b border-r px-4 py-3 text-center text-sm font-semibold last:border-r-0 bg-muted/50 h-auto text-foreground"
-                                            >
-                                                {day.label}
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {uniqueStartTimes.map((startTime) => (
-                                        <TableRow key={startTime} className="divide-x divide-border border-b last:border-b-0 hover:bg-transparent">
-                                            <TableCell className="sticky left-0 z-10 bg-background px-2 py-3 text-xs font-medium text-center whitespace-nowrap p-0 align-middle">
-                                                {getTimeLabel(startTime)}
-                                            </TableCell>
-                                            {DAYS.map((day) => {
-                                                const slot = timeSlots.find(s => s.start_time.substring(0, 5) === startTime);
-                                                if (!slot) return <TableCell key={`${day.value}-empty`}></TableCell>;
+                                    ))}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {uniqueStartTimes.map((startTime) => (
+                                    <TableRow key={startTime} className="divide-x divide-border border-b last:border-b-0 hover:bg-transparent">
+                                        <TableCell className="sticky left-0 z-10 bg-background px-2 py-3 text-xs font-medium text-center whitespace-nowrap p-0 align-middle">
+                                            {getTimeLabel(startTime)}
+                                        </TableCell>
+                                        {DAYS.map((day) => {
+                                            const slot = timeSlots.find(s => s.start_time.substring(0, 5) === startTime);
+                                            if (!slot) return <TableCell key={`${day.value}-empty`}></TableCell>;
 
-                                                const entry = getEntry(
-                                                    day.value,
-                                                    startTime
-                                                );
+                                            const entry = getEntry(
+                                                day.value,
+                                                startTime
+                                            );
 
-                                                // Find pending request targeting this slot (direct)
-                                                const pendingReq = pendingRequests.find(r =>
-                                                    r.target_day === day.value &&
-                                                    r.target_time_slot_id.toString() === slot.id.toString()
-                                                );
+                                            // Find pending request targeting this slot (direct)
+                                            const pendingReq = pendingRequests.find(r =>
+                                                r.target_day === day.value &&
+                                                r.target_time_slot_id.toString() === slot.id.toString()
+                                            );
 
-                                                // Also check if this is the PAIRED day of a pending request
-                                                // (e.g., if request targets Tuesday, Thursday should also show pending)
-                                                const pairedPendingReq = pendingRequests.find(r => {
-                                                    if (r.target_time_slot_id.toString() !== slot.id.toString()) return false;
+                                            // Also check if this is the PAIRED day of a pending request
+                                            // (e.g., if request targets Tuesday, Thursday should also show pending)
+                                            const pairedPendingReq = pendingRequests.find(r => {
+                                                if (r.target_time_slot_id.toString() !== slot.id.toString()) return false;
 
-                                                    // Check if this is the paired day of the target
-                                                    const targetGroup = getDayGroup(r.target_day);
-                                                    const currentDayPaired = getPairedDay(r.target_day);
+                                                // Check if this is the paired day of the target
+                                                const targetGroup = getDayGroup(r.target_day);
+                                                const currentDayPaired = getPairedDay(r.target_day);
 
-                                                    // Only show paired if:
-                                                    // 1. Request is moving from FRI to MW/TTH (need to create paired entry)
-                                                    // 2. OR request is moving within MW/TTH (paired entry should also be updated)
-                                                    // 3. This cell's day is the paired day of the target
-                                                    if (currentDayPaired === day.value) {
-                                                        const originalEntry = r.schedule_entry;
-                                                        if (originalEntry) {
-                                                            const originalGroup = getDayGroup(originalEntry.day);
-                                                            // FRI -> MW/TTH means we need a paired entry
-                                                            if (originalGroup === 'FRI' && (targetGroup === 'MW' || targetGroup === 'TTH')) {
-                                                                return true;
-                                                            }
-                                                            // MW/TTH -> same group (e.g., TTH -> TTH) means paired day should also update
-                                                            if ((originalGroup === 'MW' || originalGroup === 'TTH') &&
-                                                                (targetGroup === 'MW' || targetGroup === 'TTH')) {
-                                                                return true;
-                                                            }
+                                                // Only show paired if:
+                                                // 1. Request is moving from FRI to MW/TTH (need to create paired entry)
+                                                // 2. OR request is moving within MW/TTH (paired entry should also be updated)
+                                                // 3. This cell's day is the paired day of the target
+                                                if (currentDayPaired === day.value) {
+                                                    const originalEntry = r.schedule_entry;
+                                                    if (originalEntry) {
+                                                        const originalGroup = getDayGroup(originalEntry.day);
+                                                        // FRI -> MW/TTH means we need a paired entry
+                                                        if (originalGroup === 'FRI' && (targetGroup === 'MW' || targetGroup === 'TTH')) {
+                                                            return true;
                                                         }
-                                                    }
-                                                    return false;
-                                                });
-
-                                                // Use the direct pending request or the paired one
-                                                const effectivePendingReq = pendingReq || pairedPendingReq;
-                                                const isPairedPending = !!pairedPendingReq && !pendingReq;
-
-                                                const isPendingSource = entry && pendingRequests.some(r => {
-                                                    // Direct match
-                                                    if (r.schedule_entry_id === entry.id) return true;
-
-                                                    // Paired match (e.g. if Monday is moved, Wednesday should also be pending)
-                                                    const reqEntry = r.schedule_entry;
-                                                    if (reqEntry &&
-                                                        reqEntry.schedule_id === entry.schedule_id &&
-                                                        reqEntry.academic_setup_subject_id === entry.academic_setup_subject_id &&
-                                                        // Use session_group_id if available to link pairs, or fallback to properties
-                                                        (reqEntry.session_group_id === entry.session_group_id || (
-                                                            reqEntry.is_lab_session === entry.is_lab_session &&
-                                                            reqEntry.time_slot_id === entry.time_slot_id // Usually pairs share time slots
-                                                        ))
-                                                    ) {
-                                                        const reqGroup = getDayGroup(reqEntry.day);
-                                                        const currentGroup = getDayGroup(entry.day);
-
-                                                        // If they are in the same pair group (MW or TTH) but different days
-                                                        if (reqGroup === currentGroup && (reqGroup === 'MW' || reqGroup === 'TTH') && reqEntry.day !== entry.day) {
+                                                        // MW/TTH -> same group (e.g., TTH -> TTH) means paired day should also update
+                                                        if ((originalGroup === 'MW' || originalGroup === 'TTH') &&
+                                                            (targetGroup === 'MW' || targetGroup === 'TTH')) {
                                                             return true;
                                                         }
                                                     }
-                                                    return false;
-                                                });
+                                                }
+                                                return false;
+                                            });
 
-                                                // Check if this cell is being drag-hovered (direct or paired day)
-                                                const isDragTarget = draggingEntry && dragPreview &&
-                                                    dragPreview.targetSlotId === slot.id &&
-                                                    dragPreview.targetDay === day.value;
+                                            // Use the direct pending request or the paired one
+                                            const effectivePendingReq = pendingReq || pairedPendingReq;
+                                            const isPairedPending = !!pairedPendingReq && !pendingReq;
 
-                                                // Check if this is a PAIRED day that should also show preview
-                                                // When moving from FRI to TTH (e.g., drag to Tuesday), Thursday should also show
-                                                // When moving from FRI to MW (e.g., drag to Monday), Wednesday should also show
+                                            const isPendingSource = entry && pendingRequests.some(r => {
+                                                // Direct match
+                                                if (r.schedule_entry_id === entry.id) return true;
 
-                                                const isPairedDayTarget = draggingEntry && dragPreview &&
-                                                    dragPreview.targetSlotId === slot.id &&
-                                                    getPairedDay(dragPreview.targetDay) === day.value &&
-                                                    // Show paired if:
-                                                    // 1. Changing day groups (e.g., FRI -> TTH) - need to create paired entry
-                                                    // 2. OR staying within MW/TTH groups - the paired day already exists and should be updated
-                                                    (getDayGroup(draggingEntry.day) !== getDayGroup(dragPreview.targetDay) ||
-                                                        (getDayGroup(dragPreview.targetDay) === 'MW' || getDayGroup(dragPreview.targetDay) === 'TTH'));
+                                                // Paired match (e.g. if Monday is moved, Wednesday should also be pending)
+                                                const reqEntry = r.schedule_entry;
+                                                if (reqEntry &&
+                                                    reqEntry.schedule_id === entry.schedule_id &&
+                                                    reqEntry.academic_setup_subject_id === entry.academic_setup_subject_id &&
+                                                    // Use session_group_id if available to link pairs, or fallback to properties
+                                                    (reqEntry.session_group_id === entry.session_group_id || (
+                                                        reqEntry.is_lab_session === entry.is_lab_session &&
+                                                        reqEntry.time_slot_id === entry.time_slot_id // Usually pairs share time slots
+                                                    ))
+                                                ) {
+                                                    const reqGroup = getDayGroup(reqEntry.day);
+                                                    const currentGroup = getDayGroup(entry.day);
 
-                                                // Combined: show preview on direct target OR paired day
-                                                const showDragPreview = isDragTarget || isPairedDayTarget;
+                                                    // If they are in the same pair group (MW or TTH) but different days
+                                                    if (reqGroup === currentGroup && (reqGroup === 'MW' || reqGroup === 'TTH') && reqEntry.day !== entry.day) {
+                                                        return true;
+                                                    }
+                                                }
+                                                return false;
+                                            });
 
-                                                return (
-                                                    <TableCell
-                                                        key={`${day.value}-${slot.id}`}
-                                                        className={`border p-2 min-h-[130px] h-[130px] align-top relative transition-all ${showDragPreview
-                                                            ? (isPairedDayTarget ? 'bg-blue-500/10 ring-2 ring-blue-400/50 ring-inset' : 'bg-primary/10 ring-2 ring-primary/50 ring-inset')
-                                                            : 'hover:bg-muted/5'
-                                                            }`}
-                                                        onDragOver={(e) => {
-                                                            if (!isPendingSource && draggingEntry) {
-                                                                e.preventDefault();
-                                                                handleDragOver(e, day.value, slot.id);
-                                                            }
-                                                        }}
-                                                        onDragLeave={handleDragLeave}
-                                                        onDrop={(e) => handleDrop(e, day.value, slot.id)}
-                                                    >
-                                                        {entry ? (
-                                                            (() => {
-                                                                // Check if this entry is part of a paired session (MW or TTH)
-                                                                const dayGroup = entry.time_slot?.day_group;
+                                            // Check if this cell is being drag-hovered (direct or paired day)
+                                            const isDragTarget = draggingEntry && dragPreview &&
+                                                dragPreview.targetSlotId === slot.id &&
+                                                dragPreview.targetDay === day.value;
 
-                                                                const isFriday = dayGroup === 'FRI';
-                                                                const dayBadge = dayGroup === 'MW' ? 'M/W' : dayGroup === 'TTH' ? 'T/TH' : isFriday ? 'FRI' : null;
+                                            // Check if this is a PAIRED day that should also show preview
+                                            // When moving from FRI to TTH (e.g., drag to Tuesday), Thursday should also show
+                                            // When moving from FRI to MW (e.g., drag to Monday), Wednesday should also show
 
-                                                                return (
-                                                                    <div
-                                                                        draggable={!isPendingSource && currentSchedule?.status !== 'published'}
-                                                                        onDragStart={(e) => {
-                                                                            if (!isPendingSource) {
-                                                                                handleDragStart(e, entry);
-                                                                                setDragPreview({ targetDay: day.value, targetSlotId: slot.id });
-                                                                            }
-                                                                        }}
-                                                                        onDragEnd={handleDragEnd}
-                                                                        className={`flex h-full w-full flex-col gap-1 rounded-md border p-2 shadow-sm ${!isPendingSource && currentSchedule?.status !== 'published' ? 'cursor-grab active:cursor-grabbing' : ''} ${isPendingSource ? 'bg-muted/40 opacity-70 grayscale' : 'bg-card'}`}
-                                                                    >
-                                                                        <div className="flex items-start justify-between gap-1 flex-wrap">
-                                                                            <div className="flex items-center gap-1 flex-wrap">
-                                                                                <Badge variant="outline" className="font-mono text-[10px] shrink-0">
-                                                                                    {entry.academic_setup_subject?.parallel_display_code || entry.academic_setup_subject?.display_code || entry.academic_setup_subject?.subject?.code}
-                                                                                </Badge>
+                                            const isPairedDayTarget = draggingEntry && dragPreview &&
+                                                dragPreview.targetSlotId === slot.id &&
+                                                getPairedDay(dragPreview.targetDay) === day.value &&
+                                                // Show paired if:
+                                                // 1. Changing day groups (e.g., FRI -> TTH) - need to create paired entry
+                                                // 2. OR staying within MW/TTH groups - the paired day already exists and should be updated
+                                                (getDayGroup(draggingEntry.day) !== getDayGroup(dragPreview.targetDay) ||
+                                                    (getDayGroup(dragPreview.targetDay) === 'MW' || getDayGroup(dragPreview.targetDay) === 'TTH'));
 
-                                                                                {/* Day group badge for paired sessions */}
-                                                                                {dayBadge && (
-                                                                                    <Badge
-                                                                                        variant="secondary"
-                                                                                        className={`text-[9px] px-1 py-0 h-4 ${isFriday ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}
-                                                                                    >
-                                                                                        {dayBadge}
-                                                                                    </Badge>
-                                                                                )}
+                                            // Combined: show preview on direct target OR paired day
+                                            const showDragPreview = isDragTarget || isPairedDayTarget;
 
-                                                                                {entry.is_lab_session && (
-                                                                                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700">
-                                                                                        LAB
-                                                                                    </Badge>
-                                                                                )}
-                                                                            </div>
+                                            return (
+                                                <TableCell
+                                                    key={`${day.value}-${slot.id}`}
+                                                    className={`border p-2 min-h-[130px] h-[130px] align-top relative transition-all ${showDragPreview
+                                                        ? (isPairedDayTarget ? 'bg-blue-500/10 ring-2 ring-blue-400/50 ring-inset' : 'bg-primary/10 ring-2 ring-primary/50 ring-inset')
+                                                        : 'hover:bg-muted/5'
+                                                        }`}
+                                                    onDragOver={(e) => {
+                                                        if (!isPendingSource && draggingEntry) {
+                                                            e.preventDefault();
+                                                            handleDragOver(e, day.value, slot.id);
+                                                        }
+                                                    }}
+                                                    onDragLeave={handleDragLeave}
+                                                    onDrop={(e) => handleDrop(e, day.value, slot.id)}
+                                                >
+                                                    {entry ? (
+                                                        (() => {
+                                                            // Check if this entry is part of a paired session (MW or TTH)
+                                                            const dayGroup = entry.time_slot?.day_group;
 
-                                                                            {currentSchedule?.status !== 'published' && (
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    className="h-5 w-5 ml-auto text-muted-foreground hover:text-primary"
-                                                                                    onClick={() => openRequestDialog(entry)}
-                                                                                    disabled={isPendingSource}
-                                                                                    title={isPendingSource ? "Pending Change Request" : "Request Change"}
+                                                            const isFriday = dayGroup === 'FRI';
+                                                            const dayBadge = dayGroup === 'MW' ? 'M/W' : dayGroup === 'TTH' ? 'T/TH' : isFriday ? 'FRI' : null;
+
+                                                            return (
+                                                                <div
+                                                                    draggable={!isPendingSource && currentSchedule?.status !== 'published'}
+                                                                    onDragStart={(e) => {
+                                                                        if (!isPendingSource) {
+                                                                            handleDragStart(e, entry);
+                                                                            setDragPreview({ targetDay: day.value, targetSlotId: slot.id });
+                                                                        }
+                                                                    }}
+                                                                    onDragEnd={handleDragEnd}
+                                                                    className={`flex h-full w-full flex-col gap-1 rounded-md border p-2 shadow-sm ${!isPendingSource && currentSchedule?.status !== 'published' ? 'cursor-grab active:cursor-grabbing' : ''} ${isPendingSource ? 'bg-muted/40 opacity-70 grayscale' : 'bg-card'}`}
+                                                                >
+                                                                    <div className="flex items-start justify-between gap-1 flex-wrap">
+                                                                        <div className="flex items-center gap-1 flex-wrap">
+                                                                            <Badge variant="outline" className="font-mono text-[10px] shrink-0">
+                                                                                {entry.academic_setup_subject?.parallel_display_code || entry.academic_setup_subject?.display_code || entry.academic_setup_subject?.subject?.code}
+                                                                            </Badge>
+
+                                                                            {/* Day group badge for paired sessions */}
+                                                                            {dayBadge && (
+                                                                                <Badge
+                                                                                    variant="secondary"
+                                                                                    className={`text-[9px] px-1 py-0 h-4 ${isFriday ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}
                                                                                 >
-                                                                                    <Edit className="h-3 w-3" />
-                                                                                </Button>
+                                                                                    {dayBadge}
+                                                                                </Badge>
+                                                                            )}
+
+                                                                            {entry.is_lab_session && (
+                                                                                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700">
+                                                                                    LAB
+                                                                                </Badge>
                                                                             )}
                                                                         </div>
 
-                                                                        {entry.academic_setup_subject?.year_level && (
-                                                                            <Badge variant="secondary" className="shrink-0 text-xs px-1.5 py-0 h-5 flex items-center gap-1 font-normal whitespace-nowrap w-fit">
-                                                                                <span>{entry.academic_setup_subject.year_level.year_level}</span>
-                                                                                {entry.academic_setup_subject.block_number && (
-                                                                                    <>
-                                                                                        <span className="text-muted-foreground/50 mx-0.5">|</span>
-                                                                                        <span>Blk {entry.academic_setup_subject.block_number}</span>
-                                                                                    </>
-                                                                                )}
-                                                                            </Badge>
+                                                                        {currentSchedule?.status !== 'published' && (
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-5 w-5 ml-auto text-muted-foreground hover:text-primary"
+                                                                                onClick={() => openRequestDialog(entry)}
+                                                                                disabled={isPendingSource}
+                                                                                title={isPendingSource ? "Pending Change Request" : "Request Change"}
+                                                                            >
+                                                                                <Edit className="h-3 w-3" />
+                                                                            </Button>
                                                                         )}
+                                                                    </div>
 
-                                                                        <p className="text-xs font-medium line-clamp-2 mt-1" title={entry.academic_setup_subject?.subject?.name}>
-                                                                            {entry.academic_setup_subject?.subject?.name}
-                                                                        </p>
-
-                                                                        <div className="mt-auto pt-2 flex flex-col gap-1">
-                                                                            {/* Custom time display with duration indicator */}
-                                                                            {entry.custom_start_time && entry.custom_end_time && (
-                                                                                <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
-                                                                                    <Clock className="h-3 w-3" />
-                                                                                    <span>
-                                                                                        {formatTime(entry.custom_start_time)} - {formatTime(entry.custom_end_time)}
-                                                                                    </span>
-                                                                                    {/* Show duration */}
-                                                                                    {(() => {
-                                                                                        const start = entry.custom_start_time.split(':').map(Number);
-                                                                                        const end = entry.custom_end_time.split(':').map(Number);
-                                                                                        const mins = (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
-                                                                                        const hrs = Math.floor(mins / 60);
-                                                                                        const m = mins % 60;
-                                                                                        return (
-                                                                                            <span className="text-[10px] opacity-75">
-                                                                                                ({hrs > 0 ? `${hrs}hr` : ''}{m > 0 ? `${m}m` : ''})
-                                                                                            </span>
-                                                                                        );
-                                                                                    })()}
-                                                                                </div>
+                                                                    {entry.academic_setup_subject?.year_level && (
+                                                                        <Badge variant="secondary" className="shrink-0 text-xs px-1.5 py-0 h-5 flex items-center gap-1 font-normal whitespace-nowrap w-fit">
+                                                                            <span>{entry.academic_setup_subject.year_level.year_level}</span>
+                                                                            {entry.academic_setup_subject.block_number && (
+                                                                                <>
+                                                                                    <span className="text-muted-foreground/50 mx-0.5">|</span>
+                                                                                    <span>Blk {entry.academic_setup_subject.block_number}</span>
+                                                                                </>
                                                                             )}
-                                                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                                                <MapPin className="h-3 w-3" />
+                                                                        </Badge>
+                                                                    )}
+
+                                                                    <p className="text-xs font-medium line-clamp-2 mt-1" title={entry.academic_setup_subject?.subject?.name}>
+                                                                        {entry.academic_setup_subject?.subject?.name}
+                                                                    </p>
+
+                                                                    <div className="mt-auto pt-2 flex flex-col gap-1">
+                                                                        {/* Custom time display with duration indicator */}
+                                                                        {entry.custom_start_time && entry.custom_end_time && (
+                                                                            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                                                                <Clock className="h-3 w-3" />
                                                                                 <span>
-                                                                                    {entry.room?.name}
-                                                                                    {entry.room?.room_type === 'laboratory' && ' (Lab)'}
+                                                                                    {formatTime(entry.custom_start_time)} - {formatTime(entry.custom_end_time)}
                                                                                 </span>
-                                                                            </div>
-                                                                            <div className="text-[10px] text-muted-foreground font-medium">
+                                                                                {/* Show duration */}
                                                                                 {(() => {
-                                                                                    const subject = entry.academic_setup_subject as unknown as { courses?: { code: string }[]; course?: { code: string } };
-                                                                                    if (subject?.courses && subject.courses.length > 0) {
-                                                                                        return subject.courses.map((c) => c.code).join(' / ');
-                                                                                    }
-                                                                                    return subject?.course?.code || '';
+                                                                                    const start = entry.custom_start_time.split(':').map(Number);
+                                                                                    const end = entry.custom_end_time.split(':').map(Number);
+                                                                                    const mins = (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
+                                                                                    const hrs = Math.floor(mins / 60);
+                                                                                    const m = mins % 60;
+                                                                                    return (
+                                                                                        <span className="text-[10px] opacity-75">
+                                                                                            ({hrs > 0 ? `${hrs}hr` : ''}{m > 0 ? `${m}m` : ''})
+                                                                                        </span>
+                                                                                    );
                                                                                 })()}
                                                                             </div>
+                                                                        )}
+                                                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                                            <MapPin className="h-3 w-3" />
+                                                                            <span>
+                                                                                {entry.room?.name}
+                                                                                {entry.room?.room_type === 'laboratory' && ' (Lab)'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="text-[10px] text-muted-foreground font-medium">
+                                                                            {(() => {
+                                                                                const subject = entry.academic_setup_subject as unknown as { courses?: { code: string }[]; course?: { code: string } };
+                                                                                if (subject?.courses && subject.courses.length > 0) {
+                                                                                    return subject.courses.map((c) => c.code).join(' / ');
+                                                                                }
+                                                                                return subject?.course?.code || '';
+                                                                            })()}
                                                                         </div>
                                                                     </div>
-                                                                );
-                                                            })()
-                                                        ) : (
-                                                            <>
-                                                                {/* Empty Slot - show drag preview if hovering (direct or paired) */}
-                                                                {showDragPreview && draggingEntry ? (
-                                                                    <div className="absolute inset-1 z-20">
-                                                                        {(() => {
-                                                                            const previewEntry = draggingEntry;
-                                                                            const durationChange = calculateDurationChange(previewEntry, day.value);
-                                                                            const targetGroup = getDayGroup(day.value);
-                                                                            const newDayBadge = targetGroup === 'MW' ? 'M/W' : targetGroup === 'TTH' ? 'T/TH' : targetGroup === 'FRI' ? 'FRI' : null;
-
-                                                                            // Different styling for paired day (secondary target)
-                                                                            const borderColor = isPairedDayTarget ? 'border-blue-400/60' : 'border-primary/60';
-                                                                            const bgColor = isPairedDayTarget ? 'bg-blue-500/5' : 'bg-primary/5';
-
-                                                                            return (
-                                                                                <div className={`flex h-full w-full flex-col gap-1 rounded-md border-2 border-dashed ${borderColor} ${bgColor} p-2 shadow-lg animate-pulse`}>
-                                                                                    <div className="flex items-center gap-1 flex-wrap">
-                                                                                        {isPairedDayTarget && (
-                                                                                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-blue-100 text-blue-700 border-blue-200">
-                                                                                                Paired
-                                                                                            </Badge>
-                                                                                        )}
-                                                                                        <Badge variant="outline" className={`font-mono text-[10px] shrink-0 ${isPairedDayTarget ? 'bg-blue-50/80 border-blue-300' : 'bg-primary/10 border-primary/30'}`}>
-                                                                                            {previewEntry.academic_setup_subject?.parallel_display_code || previewEntry.academic_setup_subject?.display_code || previewEntry.academic_setup_subject?.subject?.code}
-                                                                                        </Badge>
-                                                                                        {newDayBadge && (
-                                                                                            <Badge variant="secondary" className={`text-[9px] px-1 py-0 h-4 ${targetGroup === 'FRI' ? 'bg-purple-100/80 text-purple-700' : 'bg-blue-100/80 text-blue-700'}`}>
-                                                                                                {newDayBadge}
-                                                                                            </Badge>
-                                                                                        )}
-                                                                                        {previewEntry.is_lab_session && (
-                                                                                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-green-50/80 text-green-700 border-green-200">
-                                                                                                LAB
-                                                                                            </Badge>
-                                                                                        )}
-                                                                                    </div>
-                                                                                    <p className="text-xs font-medium text-foreground/80 line-clamp-2">
-                                                                                        {previewEntry.academic_setup_subject?.subject?.name}
-                                                                                    </p>
-
-                                                                                    {/* Duration change preview */}
-                                                                                    {durationChange && (
-                                                                                        <div className="mt-auto pt-1 border-t border-primary/20">
-                                                                                            <div className="flex items-center gap-1 text-[10px]">
-                                                                                                <Clock className="h-3 w-3 text-primary" />
-                                                                                                <span className="font-mono">{durationChange.original}</span>
-                                                                                                <ArrowRight className="h-2.5 w-2.5" />
-                                                                                                <span className={`font-mono font-semibold ${durationChange.direction === 'contract' ? 'text-amber-600' : 'text-green-600'}`}>
-                                                                                                    {durationChange.new}
-                                                                                                </span>
-                                                                                            </div>
-                                                                                            {durationChange.pairedDay && (
-                                                                                                <p className="text-[9px] text-muted-foreground mt-0.5">
-                                                                                                    + {durationChange.pairedDay}
-                                                                                                </p>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            );
-                                                                        })()}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="h-full w-full rounded opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                                        <span className="text-xs text-muted-foreground font-dashed border-2 border-dashed p-2 rounded-full">+</span>
-                                                                    </div>
-                                                                )}
-                                                            </>
-                                                        )}
-
-                                                        {/* Drag Preview Overlay on existing entry (slot occupied warning) */}
-                                                        {showDragPreview && draggingEntry && entry && draggingEntry.id !== entry.id && (
-                                                            <div className="absolute inset-0 z-30 bg-red-500/20 border-2 border-red-400 border-dashed rounded-md flex items-center justify-center">
-                                                                <div className="bg-red-100 dark:bg-red-900/80 px-2 py-1 rounded text-xs font-medium text-red-700 dark:text-red-200">
-                                                                    Slot occupied
                                                                 </div>
-                                                            </div>
-                                                        )}
-
-                                                        {effectivePendingReq && effectivePendingReq.schedule_entry && (
-                                                            <div className={`absolute inset-0 m-1 ${isPairedPending ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800' : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'} border rounded-md p-2 shadow-sm z-10 flex flex-col gap-1 group`}>
-                                                                <div className="flex items-start justify-between gap-1">
-                                                                    <div className="flex items-center gap-1 flex-wrap">
-                                                                        <Badge className={`${isPairedPending ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200'} text-[10px] h-5 px-1.5`}>
-                                                                            {isPairedPending ? 'Paired' : 'Pending'}
-                                                                        </Badge>
-
-                                                                        <Badge variant="outline" className={`font-mono text-[10px] shrink-0 bg-white/50 ${isPairedPending ? 'border-blue-200 text-blue-900' : 'border-amber-200 text-amber-900'}`}>
-                                                                            {effectivePendingReq.schedule_entry.academic_setup_subject?.parallel_display_code || effectivePendingReq.schedule_entry.academic_setup_subject?.display_code || effectivePendingReq.schedule_entry.academic_setup_subject?.subject?.code}
-                                                                        </Badge>
-
-                                                                        {effectivePendingReq.schedule_entry.academic_setup_subject?.year_level && (
-                                                                            <Badge variant="secondary" className={`shrink-0 text-xs px-1.5 py-0 h-5 flex items-center gap-1 font-normal whitespace-nowrap ${isPairedPending ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'}`}>
-                                                                                <span>{effectivePendingReq.schedule_entry.academic_setup_subject.year_level.year_level}</span>
-                                                                                {effectivePendingReq.schedule_entry.academic_setup_subject.block_number && (
-                                                                                    <>
-                                                                                        <span className={`${isPairedPending ? 'text-blue-600/50' : 'text-amber-600/50'} mx-0.5`}>|</span>
-                                                                                        <span>Blk {effectivePendingReq.schedule_entry.academic_setup_subject.block_number}</span>
-                                                                                    </>
-                                                                                )}
-                                                                            </Badge>
-                                                                        )}
-                                                                    </div>
-
-                                                                    {!isPairedPending && (
-                                                                        <button
-                                                                            onClick={(e) => { e.stopPropagation(); cancelRequest(effectivePendingReq.id); }}
-                                                                            className={`${isPairedPending ? 'text-blue-700 dark:text-blue-300' : 'text-amber-700 dark:text-amber-300'} hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0`}
-                                                                            title="Cancel Request"
-                                                                        >
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-
-                                                                <p className={`text-xs font-medium ${isPairedPending ? 'text-blue-900 dark:text-blue-100' : 'text-amber-900 dark:text-amber-100'} line-clamp-2 mt-0.5`}>
-                                                                    {effectivePendingReq.schedule_entry.academic_setup_subject?.subject?.name}
-                                                                </p>
-
-                                                                <div className="mt-auto flex flex-col gap-0.5">
+                                                            );
+                                                        })()
+                                                    ) : (
+                                                        <>
+                                                            {/* Empty Slot - show drag preview if hovering (direct or paired) */}
+                                                            {showDragPreview && draggingEntry ? (
+                                                                <div className="absolute inset-1 z-20">
                                                                     {(() => {
-                                                                        const entry = effectivePendingReq.schedule_entry;
-                                                                        if (!entry) return null;
+                                                                        const previewEntry = draggingEntry;
+                                                                        const durationChange = calculateDurationChange(previewEntry, day.value);
+                                                                        const targetGroup = getDayGroup(day.value);
+                                                                        const newDayBadge = targetGroup === 'MW' ? 'M/W' : targetGroup === 'TTH' ? 'T/TH' : targetGroup === 'FRI' ? 'FRI' : null;
 
-                                                                        const targetSlot = timeSlots.find(ts => ts.id === effectivePendingReq.target_time_slot_id);
-                                                                        if (!targetSlot) return null;
-
-                                                                        // Calculate Duration
-                                                                        let durationMins = 60;
-                                                                        if (entry.custom_start_time && entry.custom_end_time) {
-                                                                            const [sH, sM] = entry.custom_start_time.split(':').map(Number);
-                                                                            const [eH, eM] = entry.custom_end_time.split(':').map(Number);
-                                                                            durationMins = (eH * 60 + eM) - (sH * 60 + sM);
-                                                                        } else {
-                                                                            // Fallback to time_slot if available or lookup
-                                                                            const srcSlot = entry.time_slot || timeSlots.find(ts => ts.id === entry.time_slot_id);
-                                                                            if (srcSlot) {
-                                                                                const [sH, sM] = srcSlot.start_time.split(':').map(Number);
-                                                                                const [eH, eM] = srcSlot.end_time.split(':').map(Number);
-                                                                                durationMins = (eH * 60 + eM) - (sH * 60 + sM);
-                                                                            }
-                                                                        }
-
-                                                                        // Apply Combine/Split Logic
-                                                                        const originalGroup = getDayGroup(entry.day);
-                                                                        const targetGroup = getDayGroup(effectivePendingReq.target_day);
-
-                                                                        // Combine: Paired -> Single (Double Duration)
-                                                                        if ((originalGroup === 'MW' || originalGroup === 'TTH') && ['FRI', 'SAT', 'SUN'].includes(targetGroup)) {
-                                                                            durationMins *= 2;
-                                                                        }
-                                                                        // Split: Single -> Paired (Halve Duration)
-                                                                        else if (['FRI', 'SAT', 'SUN'].includes(originalGroup) && ['MW', 'TTH'].includes(targetGroup)) {
-                                                                            durationMins /= 2;
-                                                                        }
-
-                                                                        // Calculate New End Time
-                                                                        const [tH, tM] = targetSlot.start_time.split(':').map(Number);
-                                                                        const newEndMins = (tH * 60 + tM) + durationMins;
-                                                                        const newEH = Math.floor(newEndMins / 60);
-                                                                        const newEM = newEndMins % 60;
-
-                                                                        const startTimeStr = formatTime(targetSlot.start_time);
-                                                                        // Construct HH:mm:ss for formatTime to consume, or just use simpler formatting
-                                                                        // formatTime expects "HH:mm:ss" string probably.
-                                                                        const endTimeString = `${newEH.toString().padStart(2, '0')}:${newEM.toString().padStart(2, '0')}:00`;
-                                                                        const endTimeStr = formatTime(endTimeString);
-
-                                                                        const durationStr = durationMins >= 60
-                                                                            ? (durationMins / 60).toFixed(1).replace('.0', '') + 'hr'
-                                                                            : durationMins + 'm';
+                                                                        // Different styling for paired day (secondary target)
+                                                                        const borderColor = isPairedDayTarget ? 'border-blue-400/60' : 'border-primary/60';
+                                                                        const bgColor = isPairedDayTarget ? 'bg-blue-500/5' : 'bg-primary/5';
 
                                                                         return (
-                                                                            <div className={`text-[10px] ${isPairedPending ? 'text-blue-700 dark:text-blue-300' : 'text-amber-700 dark:text-amber-300'} flex items-center gap-1 font-medium`}>
-                                                                                <Clock className="h-3 w-3" />
-                                                                                {startTimeStr} - {endTimeStr}
-                                                                                <span className="opacity-70 ml-0.5">({durationStr})</span>
+                                                                            <div className={`flex h-full w-full flex-col gap-1 rounded-md border-2 border-dashed ${borderColor} ${bgColor} p-2 shadow-lg animate-pulse`}>
+                                                                                <div className="flex items-center gap-1 flex-wrap">
+                                                                                    {isPairedDayTarget && (
+                                                                                        <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-blue-100 text-blue-700 border-blue-200">
+                                                                                            Paired
+                                                                                        </Badge>
+                                                                                    )}
+                                                                                    <Badge variant="outline" className={`font-mono text-[10px] shrink-0 ${isPairedDayTarget ? 'bg-blue-50/80 border-blue-300' : 'bg-primary/10 border-primary/30'}`}>
+                                                                                        {previewEntry.academic_setup_subject?.parallel_display_code || previewEntry.academic_setup_subject?.display_code || previewEntry.academic_setup_subject?.subject?.code}
+                                                                                    </Badge>
+                                                                                    {newDayBadge && (
+                                                                                        <Badge variant="secondary" className={`text-[9px] px-1 py-0 h-4 ${targetGroup === 'FRI' ? 'bg-purple-100/80 text-purple-700' : 'bg-blue-100/80 text-blue-700'}`}>
+                                                                                            {newDayBadge}
+                                                                                        </Badge>
+                                                                                    )}
+                                                                                    {previewEntry.is_lab_session && (
+                                                                                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-green-50/80 text-green-700 border-green-200">
+                                                                                            LAB
+                                                                                        </Badge>
+                                                                                    )}
+                                                                                </div>
+                                                                                <p className="text-xs font-medium text-foreground/80 line-clamp-2">
+                                                                                    {previewEntry.academic_setup_subject?.subject?.name}
+                                                                                </p>
+
+                                                                                {/* Duration change preview */}
+                                                                                {durationChange && (
+                                                                                    <div className="mt-auto pt-1 border-t border-primary/20">
+                                                                                        <div className="flex items-center gap-1 text-[10px]">
+                                                                                            <Clock className="h-3 w-3 text-primary" />
+                                                                                            <span className="font-mono">{durationChange.original}</span>
+                                                                                            <ArrowRight className="h-2.5 w-2.5" />
+                                                                                            <span className={`font-mono font-semibold ${durationChange.direction === 'contract' ? 'text-amber-600' : 'text-green-600'}`}>
+                                                                                                {durationChange.new}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        {durationChange.pairedDay && (
+                                                                                            <p className="text-[9px] text-muted-foreground mt-0.5">
+                                                                                                + {durationChange.pairedDay}
+                                                                                            </p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
                                                                         );
                                                                     })()}
-                                                                    <div className={`text-[10px] ${isPairedPending ? 'text-blue-700 dark:text-blue-300' : 'text-amber-700 dark:text-amber-300'} flex items-center gap-1`}>
-                                                                        <MapPin className="h-3 w-3" />
-                                                                        {rooms.find(r => r.id === effectivePendingReq.target_room_id)?.name || 'Room ' + effectivePendingReq.target_room_id}
-                                                                    </div>
-                                                                    <div className={`text-[10px] ${isPairedPending ? 'text-blue-800/80' : 'text-amber-800/80'} font-medium`}>
-                                                                        {(() => {
-                                                                            const s = effectivePendingReq.schedule_entry.academic_setup_subject as unknown as { courses?: { code: string }[]; course?: { code: string } };
-                                                                            if (s?.courses && s.courses.length > 0) {
-                                                                                return s.courses.map((c) => c.code).join(' / ');
-                                                                            }
-                                                                            return s?.course?.code || '';
-                                                                        })()}
-                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="h-full w-full rounded opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                    <span className="text-xs text-muted-foreground font-dashed border-2 border-dashed p-2 rounded-full">+</span>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+
+                                                    {/* Drag Preview Overlay on existing entry (slot occupied warning) */}
+                                                    {showDragPreview && draggingEntry && entry && draggingEntry.id !== entry.id && (
+                                                        <div className="absolute inset-0 z-30 bg-red-500/20 border-2 border-red-400 border-dashed rounded-md flex items-center justify-center">
+                                                            <div className="bg-red-100 dark:bg-red-900/80 px-2 py-1 rounded text-xs font-medium text-red-700 dark:text-red-200">
+                                                                Slot occupied
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {effectivePendingReq && effectivePendingReq.schedule_entry && (
+                                                        <div className={`absolute inset-0 m-1 ${isPairedPending ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800' : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'} border rounded-md p-2 shadow-sm z-10 flex flex-col gap-1 group`}>
+                                                            <div className="flex items-start justify-between gap-1">
+                                                                <div className="flex items-center gap-1 flex-wrap">
+                                                                    <Badge className={`${isPairedPending ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200'} text-[10px] h-5 px-1.5`}>
+                                                                        {isPairedPending ? 'Paired' : 'Pending'}
+                                                                    </Badge>
+
+                                                                    <Badge variant="outline" className={`font-mono text-[10px] shrink-0 bg-white/50 ${isPairedPending ? 'border-blue-200 text-blue-900' : 'border-amber-200 text-amber-900'}`}>
+                                                                        {effectivePendingReq.schedule_entry.academic_setup_subject?.parallel_display_code || effectivePendingReq.schedule_entry.academic_setup_subject?.display_code || effectivePendingReq.schedule_entry.academic_setup_subject?.subject?.code}
+                                                                    </Badge>
+
+                                                                    {effectivePendingReq.schedule_entry.academic_setup_subject?.year_level && (
+                                                                        <Badge variant="secondary" className={`shrink-0 text-xs px-1.5 py-0 h-5 flex items-center gap-1 font-normal whitespace-nowrap ${isPairedPending ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'}`}>
+                                                                            <span>{effectivePendingReq.schedule_entry.academic_setup_subject.year_level.year_level}</span>
+                                                                            {effectivePendingReq.schedule_entry.academic_setup_subject.block_number && (
+                                                                                <>
+                                                                                    <span className={`${isPairedPending ? 'text-blue-600/50' : 'text-amber-600/50'} mx-0.5`}>|</span>
+                                                                                    <span>Blk {effectivePendingReq.schedule_entry.academic_setup_subject.block_number}</span>
+                                                                                </>
+                                                                            )}
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+
+                                                                {!isPairedPending && (
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); cancelRequest(effectivePendingReq.id); }}
+                                                                        className={`${isPairedPending ? 'text-blue-700 dark:text-blue-300' : 'text-amber-700 dark:text-amber-300'} hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0`}
+                                                                        title="Cancel Request"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                                                                    </button>
+                                                                )}
+                                                            </div>
+
+                                                            <p className={`text-xs font-medium ${isPairedPending ? 'text-blue-900 dark:text-blue-100' : 'text-amber-900 dark:text-amber-100'} line-clamp-2 mt-0.5`}>
+                                                                {effectivePendingReq.schedule_entry.academic_setup_subject?.subject?.name}
+                                                            </p>
+
+                                                            <div className="mt-auto flex flex-col gap-0.5">
+                                                                {(() => {
+                                                                    const entry = effectivePendingReq.schedule_entry;
+                                                                    if (!entry) return null;
+
+                                                                    const targetSlot = timeSlots.find(ts => ts.id === effectivePendingReq.target_time_slot_id);
+                                                                    if (!targetSlot) return null;
+
+                                                                    // Calculate Duration
+                                                                    let durationMins = 60;
+                                                                    if (entry.custom_start_time && entry.custom_end_time) {
+                                                                        const [sH, sM] = entry.custom_start_time.split(':').map(Number);
+                                                                        const [eH, eM] = entry.custom_end_time.split(':').map(Number);
+                                                                        durationMins = (eH * 60 + eM) - (sH * 60 + sM);
+                                                                    } else {
+                                                                        // Fallback to time_slot if available or lookup
+                                                                        const srcSlot = entry.time_slot || timeSlots.find(ts => ts.id === entry.time_slot_id);
+                                                                        if (srcSlot) {
+                                                                            const [sH, sM] = srcSlot.start_time.split(':').map(Number);
+                                                                            const [eH, eM] = srcSlot.end_time.split(':').map(Number);
+                                                                            durationMins = (eH * 60 + eM) - (sH * 60 + sM);
+                                                                        }
+                                                                    }
+
+                                                                    // Apply Combine/Split Logic
+                                                                    const originalGroup = getDayGroup(entry.day);
+                                                                    const targetGroup = getDayGroup(effectivePendingReq.target_day);
+
+                                                                    // Combine: Paired -> Single (Double Duration)
+                                                                    if ((originalGroup === 'MW' || originalGroup === 'TTH') && ['FRI', 'SAT', 'SUN'].includes(targetGroup)) {
+                                                                        durationMins *= 2;
+                                                                    }
+                                                                    // Split: Single -> Paired (Halve Duration)
+                                                                    else if (['FRI', 'SAT', 'SUN'].includes(originalGroup) && ['MW', 'TTH'].includes(targetGroup)) {
+                                                                        durationMins /= 2;
+                                                                    }
+
+                                                                    // Calculate New End Time
+                                                                    const [tH, tM] = targetSlot.start_time.split(':').map(Number);
+                                                                    const newEndMins = (tH * 60 + tM) + durationMins;
+                                                                    const newEH = Math.floor(newEndMins / 60);
+                                                                    const newEM = newEndMins % 60;
+
+                                                                    const startTimeStr = formatTime(targetSlot.start_time);
+                                                                    // Construct HH:mm:ss for formatTime to consume, or just use simpler formatting
+                                                                    // formatTime expects "HH:mm:ss" string probably.
+                                                                    const endTimeString = `${newEH.toString().padStart(2, '0')}:${newEM.toString().padStart(2, '0')}:00`;
+                                                                    const endTimeStr = formatTime(endTimeString);
+
+                                                                    const durationStr = durationMins >= 60
+                                                                        ? (durationMins / 60).toFixed(1).replace('.0', '') + 'hr'
+                                                                        : durationMins + 'm';
+
+                                                                    return (
+                                                                        <div className={`text-[10px] ${isPairedPending ? 'text-blue-700 dark:text-blue-300' : 'text-amber-700 dark:text-amber-300'} flex items-center gap-1 font-medium`}>
+                                                                            <Clock className="h-3 w-3" />
+                                                                            {startTimeStr} - {endTimeStr}
+                                                                            <span className="opacity-70 ml-0.5">({durationStr})</span>
+                                                                        </div>
+                                                                    );
+                                                                })()}
+                                                                <div className={`text-[10px] ${isPairedPending ? 'text-blue-700 dark:text-blue-300' : 'text-amber-700 dark:text-amber-300'} flex items-center gap-1`}>
+                                                                    <MapPin className="h-3 w-3" />
+                                                                    {rooms.find(r => r.id === effectivePendingReq.target_room_id)?.name || 'Room ' + effectivePendingReq.target_room_id}
+                                                                </div>
+                                                                <div className={`text-[10px] ${isPairedPending ? 'text-blue-800/80' : 'text-amber-800/80'} font-medium`}>
+                                                                    {(() => {
+                                                                        const s = effectivePendingReq.schedule_entry.academic_setup_subject as unknown as { courses?: { code: string }[]; course?: { code: string } };
+                                                                        if (s?.courses && s.courses.length > 0) {
+                                                                            return s.courses.map((c) => c.code).join(' / ');
+                                                                        }
+                                                                        return s?.course?.code || '';
+                                                                    })()}
                                                                 </div>
                                                             </div>
-                                                        )}
-                                                    </TableCell>
-                                                );
-                                            })}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                            );
+                                        })}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </div>
                 )}
 

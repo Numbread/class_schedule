@@ -172,18 +172,18 @@ export default function CreateAcademicSetup({ departments, courses }: Props) {
                                 <Input
                                     value={form.data.curriculum_name}
                                     onChange={(e) => form.setData('curriculum_name', e.target.value)}
-                                    placeholder="e.g., CMO No. 25, s. 2016"
+
                                 />
                                 <InputError message={form.errors.curriculum_name} />
                             </div>
 
-                             {/* Academic Year */}
+                            {/* Academic Year */}
                             <div className="space-y-2">
                                 <Label>Academic Year *</Label>
                                 <Input
                                     value={form.data.academic_year}
                                     onChange={(e) => form.setData('academic_year', e.target.value)}
-                                    placeholder="e.g., 2026-2027"
+                                    placeholder="e.g., 2025-2026"
                                 />
                                 <InputError message={form.errors.academic_year} />
                             </div>
@@ -207,7 +207,7 @@ export default function CreateAcademicSetup({ departments, courses }: Props) {
                                 <InputError message={form.errors.semester} />
                             </div>
 
-                             {/* Effective Year */}
+                            {/* Effective Year */}
                             <div className="space-y-2">
                                 <Label>Effective Year</Label>
                                 <Input
@@ -266,17 +266,15 @@ export default function CreateAcademicSetup({ departments, courses }: Props) {
                                             <div
                                                 key={course.id}
                                                 onClick={() => toggleCourse(course.id)}
-                                                className={`flex items-start gap-3 rounded-lg border-2 p-4 transition-all cursor-pointer ${
-                                                    isSelected
-                                                        ? 'border-primary bg-primary/10'
-                                                        : 'border-muted hover:border-primary/50 hover:bg-muted/50'
-                                                }`}
+                                                className={`flex items-start gap-3 rounded-lg border-2 p-4 transition-all cursor-pointer ${isSelected
+                                                    ? 'border-primary bg-primary/10'
+                                                    : 'border-muted hover:border-primary/50 hover:bg-muted/50'
+                                                    }`}
                                             >
-                                                <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${
-                                                    isSelected
-                                                        ? 'bg-primary border-primary'
-                                                        : 'border-muted-foreground'
-                                                }`}>
+                                                <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${isSelected
+                                                    ? 'bg-primary border-primary'
+                                                    : 'border-muted-foreground'
+                                                    }`}>
                                                     {isSelected && (
                                                         <Check className="h-3 w-3 text-primary-foreground" />
                                                     )}
@@ -321,18 +319,16 @@ export default function CreateAcademicSetup({ departments, courses }: Props) {
                                     <div
                                         key={yearLevel.value}
                                         onClick={() => toggleYearLevel(yearLevel.value)}
-                                        className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-4 transition-all cursor-pointer select-none ${
-                                            isSelected
-                                                ? 'border-primary bg-primary/10 text-primary'
-                                                : 'border-muted hover:border-primary/50 hover:bg-muted/50'
-                                        } ${isExtraYear ? 'opacity-70' : ''}`}
+                                        className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-4 transition-all cursor-pointer select-none ${isSelected
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-muted hover:border-primary/50 hover:bg-muted/50'
+                                            } ${isExtraYear ? 'opacity-70' : ''}`}
                                     >
                                         <div className="flex items-center gap-2">
-                                            <div className={`h-4 w-4 rounded border-2 flex items-center justify-center ${
-                                                isSelected
-                                                    ? 'bg-primary border-primary'
-                                                    : 'border-muted-foreground'
-                                            }`}>
+                                            <div className={`h-4 w-4 rounded border-2 flex items-center justify-center ${isSelected
+                                                ? 'bg-primary border-primary'
+                                                : 'border-muted-foreground'
+                                                }`}>
                                                 {isSelected && (
                                                     <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

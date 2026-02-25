@@ -41,6 +41,7 @@ class GeneticAlgorithmService
     protected array $lectureRoomIds = [];     // Just IDs for fast lookup
     protected array $labRoomIds = [];         // Just IDs for fast lookup
     protected array $facultyDayOffMap = [];
+    protected array $facultyDayOffTimeMap = [];
     protected array $facultyTimePeriodMap = [];
     protected array $roomAssignmentRules = [];  // Category -> allowed room IDs
     protected array $subjectCategories = [];    // Subject ID -> category
@@ -67,8 +68,8 @@ class GeneticAlgorithmService
         'block_conflict' => -50,          // Same base subject at same time
         'capacity_mismatch' => -30,       // Room too small
         'room_type_mismatch' => -40,      // Lab in lecture room
-        'faculty_day_off' => -10,         // Faculty on day off (soft)
-        'faculty_time_period' => -5,      // Outside preferred time (soft)
+        'faculty_day_off' => -100,        // Faculty on day off (harder soft constraint)
+        'faculty_time_period' => -50,     // Outside preferred time (harder soft constraint)
     ];
 
     // Track subject_id to AcademicSetupSubject mapping
@@ -225,7 +226,8 @@ class GeneticAlgorithmService
                 }
             }
 
-            if (!$hasConflicts) break;
+            if (!$hasConflicts)
+                break;
         }
 
         return $chromosome;
@@ -247,7 +249,8 @@ class GeneticAlgorithmService
     ): array {
         $isLab = $gene['is_lab'];
         $roomIds = $isLab ? $this->labRoomIds : $this->lectureRoomIds;
-        if (empty($roomIds)) $roomIds = array_column($this->roomsArray, 'id');
+        if (empty($roomIds))
+            $roomIds = array_column($this->roomsArray, 'id');
 
         $subjectData = $this->subjectsById[$gene['setup_subject_id']] ?? null;
         $facultyId = $subjectData ? $subjectData['faculty_id'] : null;
@@ -294,12 +297,39 @@ class GeneticAlgorithmService
                     $facultyKey = $facultyId ? "{$facultyId}_{$slot['id']}_{$day}" : null;
                     $yearLevelBlockKey = "{$yearLevelId}_{$blockNumber}_{$slot['id']}_{$day}";
 
-                    if (isset($usedRoomTimeSlots[$roomKey])) $conflicts++;
-                    if ($facultyKey && isset($usedFacultyTimeSlots[$facultyKey])) $conflicts++;
-                    if (isset($yearLevelBlockTimeSlots[$yearLevelBlockKey])) $conflicts++;
+                    if (isset($usedRoomTimeSlots[$roomKey]))
+                        $conflicts++;
+                    if ($facultyKey && isset($usedFacultyTimeSlots[$facultyKey]))
+                        $conflicts++;
+                    if (isset($yearLevelBlockTimeSlots[$yearLevelBlockKey]))
+                        $conflicts++;
+
+                    // Faculty Day Off check
+                    if ($facultyId && isset($this->facultyDayOffMap[$facultyId])) {
+                        if (strtolower($day) === $this->facultyDayOffMap[$facultyId]) {
+                            $offTime = $this->facultyDayOffTimeMap[$facultyId] ?? 'wholeday';
+                            if ($offTime === 'wholeday') {
+                                $conflicts++;
+                            } else {
+                                $period = $this->getTimePeriodFromSlot($slot);
+                                if ($period === $offTime) {
+                                    $conflicts++;
+                                }
+                            }
+                        }
+                    }
+
+                    // Faculty Time preference check
+                    if ($facultyId && isset($this->facultyTimePeriodMap[$facultyId])) {
+                        $period = $this->getTimePeriodFromSlot($slot);
+                        if ($period && $period !== $this->facultyTimePeriodMap[$facultyId]) {
+                            $conflicts++;
+                        }
+                    }
                 }
 
-                if ($conflicts === 0) return $testGene;
+                if ($conflicts === 0)
+                    return $testGene;
 
                 $isBetter = ($conflicts < $bestConflictCount) ||
                     ($conflicts == $bestConflictCount && !$isFriday && $bestIsFriday);
@@ -351,6 +381,12 @@ class GeneticAlgorithmService
         foreach ($faculty as $f) {
             if ($f->preferred_day_off) {
                 $this->facultyDayOffMap[$f->user_id] = strtolower($f->preferred_day_off);
+
+                $offTime = $f->preferred_day_off_time;
+                if (!$offTime || strtolower($offTime) === 'whole day') {
+                    $offTime = 'wholeday';
+                }
+                $this->facultyDayOffTimeMap[$f->user_id] = strtolower($offTime);
             }
             if ($f->preferred_time_period) {
                 $this->facultyTimePeriodMap[$f->user_id] = $f->preferred_time_period;
@@ -732,7 +768,8 @@ class GeneticAlgorithmService
                 $validRoomIds[] = $rid;
             }
         }
-        if (empty($validRoomIds)) $validRoomIds = $roomIds;
+        if (empty($validRoomIds))
+            $validRoomIds = $roomIds;
 
         // Prioritize preferred room if specified and available
         if ($preferredRoomId && in_array($preferredRoomId, $validRoomIds)) {
@@ -793,6 +830,32 @@ class GeneticAlgorithmService
                         $isAvailable = false;
                         break;
                     }
+
+                    // Faculty Day Off check
+                    if ($facultyId && isset($this->facultyDayOffMap[$facultyId])) {
+                        if (strtolower($day) === $this->facultyDayOffMap[$facultyId]) {
+                            $offTime = $this->facultyDayOffTimeMap[$facultyId] ?? 'wholeday';
+                            if ($offTime === 'wholeday') {
+                                $isAvailable = false;
+                                break;
+                            }
+
+                            $period = $this->getTimePeriodFromSlot($slot);
+                            if ($period === $offTime) {
+                                $isAvailable = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Faculty Time preference check
+                    if ($facultyId && isset($this->facultyTimePeriodMap[$facultyId])) {
+                        $period = $this->getTimePeriodFromSlot($slot);
+                        if ($period && $period !== $this->facultyTimePeriodMap[$facultyId]) {
+                            $isAvailable = false;
+                            break;
+                        }
+                    }
                 }
 
                 if ($isAvailable) {
@@ -800,7 +863,8 @@ class GeneticAlgorithmService
                     foreach ($days as $day) {
                         $usedSlots["R_{$roomId}_{$slotId}_{$day}"] = true;
                         $usedSlots["S_{$yearLevelId}_{$blockNumber}_{$slotId}_{$day}"] = true;
-                        if ($facultyId) $usedSlots["F_{$facultyId}_{$slotId}_{$day}"] = true;
+                        if ($facultyId)
+                            $usedSlots["F_{$facultyId}_{$slotId}_{$day}"] = true;
                     }
 
                     return [
@@ -834,7 +898,8 @@ class GeneticAlgorithmService
         array &$usedSlots
     ): ?array {
         $roomIds = $isLab ? $this->labRoomIds : $this->lectureRoomIds;
-        if (empty($roomIds)) $roomIds = array_column($this->roomsArray, 'id');
+        if (empty($roomIds))
+            $roomIds = array_column($this->roomsArray, 'id');
 
         $bestGene = null;
         $bestConflicts = PHP_INT_MAX;
@@ -860,9 +925,35 @@ class GeneticAlgorithmService
                 $days = $slot['days'];
 
                 foreach ($days as $day) {
-                    if (isset($usedSlots["R_{$roomId}_{$slot['id']}_{$day}"])) $conflicts++;
-                    if (isset($usedSlots["S_{$yearLevelId}_{$blockNumber}_{$slot['id']}_{$day}"])) $conflicts++;
-                    if ($facultyId && isset($usedSlots["F_{$facultyId}_{$slot['id']}_{$day}"])) $conflicts++;
+                    if (isset($usedSlots["R_{$roomId}_{$slot['id']}_{$day}"]))
+                        $conflicts++;
+                    if (isset($usedSlots["S_{$yearLevelId}_{$blockNumber}_{$slot['id']}_{$day}"]))
+                        $conflicts++;
+                    if ($facultyId && isset($usedSlots["F_{$facultyId}_{$slot['id']}_{$day}"]))
+                        $conflicts++;
+
+                    // Faculty Day Off check
+                    if ($facultyId && isset($this->facultyDayOffMap[$facultyId])) {
+                        if (strtolower($day) === $this->facultyDayOffMap[$facultyId]) {
+                            $offTime = $this->facultyDayOffTimeMap[$facultyId] ?? 'wholeday';
+                            if ($offTime === 'wholeday') {
+                                $conflicts++;
+                            } else {
+                                $period = $this->getTimePeriodFromSlot($slot);
+                                if ($period === $offTime) {
+                                    $conflicts++;
+                                }
+                            }
+                        }
+                    }
+
+                    // Faculty Time preference check
+                    if ($facultyId && isset($this->facultyTimePeriodMap[$facultyId])) {
+                        $period = $this->getTimePeriodFromSlot($slot);
+                        if ($period && $period !== $this->facultyTimePeriodMap[$facultyId]) {
+                            $conflicts++;
+                        }
+                    }
                 }
 
                 // Prefer: less conflicts, and non-Friday over Friday
@@ -889,7 +980,8 @@ class GeneticAlgorithmService
             foreach ($bestGene['days'] as $day) {
                 $usedSlots["R_{$bestGene['room_id']}_{$bestGene['time_slot_id']}_{$day}"] = true;
                 $usedSlots["S_{$yearLevelId}_{$blockNumber}_{$bestGene['time_slot_id']}_{$day}"] = true;
-                if ($facultyId) $usedSlots["F_{$facultyId}_{$bestGene['time_slot_id']}_{$day}"] = true;
+                if ($facultyId)
+                    $usedSlots["F_{$facultyId}_{$bestGene['time_slot_id']}_{$day}"] = true;
             }
         }
 
@@ -978,14 +1070,14 @@ class GeneticAlgorithmService
                 // Room conflict
                 $roomKey = "{$roomId}_{$slotId}_{$day}";
                 if (isset($roomSlots[$roomKey])) {
-                    $fitness += (int)($this->fitnessWeights['room_conflict'] * $fridayMultiplier);
+                    $fitness += (int) ($this->fitnessWeights['room_conflict'] * $fridayMultiplier);
                 }
                 $roomSlots[$roomKey] = true;
 
                 // Section/Year-level-block conflict (students can't be in 2 places)
                 $sectionKey = "{$yearLevelId}_{$blockNumber}_{$slotId}_{$day}";
                 if (isset($sectionSlots[$sectionKey])) {
-                    $fitness += (int)($this->fitnessWeights['year_level_conflict'] * $fridayMultiplier);
+                    $fitness += (int) ($this->fitnessWeights['year_level_conflict'] * $fridayMultiplier);
                 }
                 $sectionSlots[$sectionKey] = true;
 
@@ -993,14 +1085,28 @@ class GeneticAlgorithmService
                 if ($facultyId) {
                     $facultyKey = "{$facultyId}_{$slotId}_{$day}";
                     if (isset($facultySlots[$facultyKey])) {
-                        $fitness += (int)($this->fitnessWeights['faculty_conflict'] * $fridayMultiplier);
+                        $fitness += (int) ($this->fitnessWeights['faculty_conflict'] * $fridayMultiplier);
                     }
                     $facultySlots[$facultyKey] = true;
 
-                    // Soft: Faculty day off
+                    // Soft: Faculty day off and time
                     if (isset($this->facultyDayOffMap[$facultyId])) {
                         if (strtolower($day) === $this->facultyDayOffMap[$facultyId]) {
-                            $fitness += $this->fitnessWeights['faculty_day_off'];
+                            $offTime = $this->facultyDayOffTimeMap[$facultyId] ?? 'wholeday';
+
+                            $isConflict = false;
+                            if ($offTime === 'wholeday') {
+                                $isConflict = true;
+                            } else {
+                                $period = $this->getTimePeriodFromSlot($slot);
+                                if ($period === $offTime) {
+                                    $isConflict = true;
+                                }
+                            }
+
+                            if ($isConflict) {
+                                $fitness += $this->fitnessWeights['faculty_day_off'];
+                            }
                         }
                     }
 
@@ -1041,9 +1147,10 @@ class GeneticAlgorithmService
     protected function getTimePeriodFromSlot(array $slot): ?string
     {
         $startTime = $slot['start_time'] ?? null;
-        if (!$startTime) return null;
+        if (!$startTime)
+            return null;
 
-        $hour = is_object($startTime) ? (int)$startTime->format('H') : (int)substr($startTime, 0, 2);
+        $hour = is_object($startTime) ? (int) $startTime->format('H') : (int) substr($startTime, 0, 2);
         return $hour < 12 ? 'morning' : 'afternoon';
     }
 
@@ -1183,8 +1290,10 @@ class GeneticAlgorithmService
         }
 
         // Ensure children have all genes (fill missing with random if needed)
-        if (empty($child1)) $child1 = $parent1;
-        if (empty($child2)) $child2 = $parent2;
+        if (empty($child1))
+            $child1 = $parent1;
+        if (empty($child2))
+            $child2 = $parent2;
 
         return [$child1, $child2];
     }
@@ -1273,7 +1382,8 @@ class GeneticAlgorithmService
         $days = $gene['days'] ?? ['monday'];
         $subject = $this->subjectsById[$gene['setup_subject_id']] ?? null;
 
-        if (!$subject) return true;
+        if (!$subject)
+            return true;
 
         $yearLevelId = $subject['year_level_id'];
         $blockNumber = $subject['block_number'];
@@ -1284,9 +1394,41 @@ class GeneticAlgorithmService
             $facultyKey = $facultyId ? "{$facultyId}_{$gene['time_slot_id']}_{$day}" : null;
             $yearLevelBlockKey = "{$yearLevelId}_{$blockNumber}_{$gene['time_slot_id']}_{$day}";
 
-            if (($usedRoomTimeSlots[$roomKey] ?? 0) > 1) return true;
-            if ($facultyKey && ($usedFacultyTimeSlots[$facultyKey] ?? 0) > 1) return true;
-            if (($yearLevelBlockTimeSlots[$yearLevelBlockKey] ?? 0) > 1) return true;
+            if (($usedRoomTimeSlots[$roomKey] ?? 0) > 1)
+                return true;
+            if ($facultyKey && ($usedFacultyTimeSlots[$facultyKey] ?? 0) > 1)
+                return true;
+            if (($yearLevelBlockTimeSlots[$yearLevelBlockKey] ?? 0) > 1)
+                return true;
+
+            // Check Faculty Day Off preference
+            if ($facultyId && isset($this->facultyDayOffMap[$facultyId])) {
+                if (strtolower($day) === $this->facultyDayOffMap[$facultyId]) {
+                    $offTime = $this->facultyDayOffTimeMap[$facultyId] ?? 'wholeday';
+                    if ($offTime === 'wholeday') {
+                        return true;
+                    }
+
+                    $slot = $this->timeSlotsById[$gene['time_slot_id']] ?? null;
+                    if ($slot) {
+                        $period = $this->getTimePeriodFromSlot($slot);
+                        if ($period === $offTime) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // Check Faculty time preference
+            if ($facultyId && isset($this->facultyTimePeriodMap[$facultyId])) {
+                $slot = $this->timeSlotsById[$gene['time_slot_id']] ?? null;
+                if ($slot) {
+                    $period = $this->getTimePeriodFromSlot($slot);
+                    if ($period && $period !== $this->facultyTimePeriodMap[$facultyId]) {
+                        return true;
+                    }
+                }
+            }
         }
 
         return false;
@@ -1300,7 +1442,8 @@ class GeneticAlgorithmService
         $days = $gene['days'] ?? ['monday'];
         $subject = $this->subjectsById[$gene['setup_subject_id']] ?? null;
 
-        if (!$subject) return;
+        if (!$subject)
+            return;
 
         $yearLevelId = $subject['year_level_id'];
         $blockNumber = $subject['block_number'];
@@ -1339,7 +1482,8 @@ class GeneticAlgorithmService
 
         // Get room IDs from cache
         $roomIds = $gene['is_lab'] ? $this->labRoomIds : $this->lectureRoomIds;
-        if (empty($roomIds)) $roomIds = array_column($this->roomsArray, 'id');
+        if (empty($roomIds))
+            $roomIds = array_column($this->roomsArray, 'id');
 
         // Separate MW/TTH from Friday slots (prefer MW/TTH)
         $mwTthSlots = [];
@@ -1416,7 +1560,8 @@ class GeneticAlgorithmService
         $days = $gene['days'] ?? ['monday'];
         $subject = $this->subjectsById[$gene['setup_subject_id']] ?? null;
 
-        if (!$subject) return 99;
+        if (!$subject)
+            return 99;
 
         $yearLevelId = $subject['year_level_id'];
         $blockNumber = $subject['block_number'];
@@ -1427,9 +1572,41 @@ class GeneticAlgorithmService
             $facultyKey = $facultyId ? "{$facultyId}_{$gene['time_slot_id']}_{$day}" : null;
             $yearLevelBlockKey = "{$yearLevelId}_{$blockNumber}_{$gene['time_slot_id']}_{$day}";
 
-            if (isset($usedRoomTimeSlots[$roomKey])) $conflicts++;
-            if ($facultyKey && isset($usedFacultyTimeSlots[$facultyKey])) $conflicts++;
-            if (isset($yearLevelBlockTimeSlots[$yearLevelBlockKey])) $conflicts++;
+            if (isset($usedRoomTimeSlots[$roomKey]))
+                $conflicts++;
+            if ($facultyKey && isset($usedFacultyTimeSlots[$facultyKey]))
+                $conflicts++;
+            if (isset($yearLevelBlockTimeSlots[$yearLevelBlockKey]))
+                $conflicts++;
+
+            // Faculty Day Off preference
+            if ($facultyId && isset($this->facultyDayOffMap[$facultyId])) {
+                if (strtolower($day) === $this->facultyDayOffMap[$facultyId]) {
+                    $offTime = $this->facultyDayOffTimeMap[$facultyId] ?? 'wholeday';
+                    if ($offTime === 'wholeday') {
+                        $conflicts++;
+                    } else {
+                        $slot = $this->timeSlotsById[$gene['time_slot_id']] ?? null;
+                        if ($slot) {
+                            $period = $this->getTimePeriodFromSlot($slot);
+                            if ($period === $offTime) {
+                                $conflicts++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Faculty time preference
+            if ($facultyId && isset($this->facultyTimePeriodMap[$facultyId])) {
+                $slot = $this->timeSlotsById[$gene['time_slot_id']] ?? null;
+                if ($slot) {
+                    $period = $this->getTimePeriodFromSlot($slot);
+                    if ($period && $period !== $this->facultyTimePeriodMap[$facultyId]) {
+                        $conflicts++;
+                    }
+                }
+            }
         }
 
         return $conflicts;
@@ -1690,19 +1867,52 @@ class GeneticAlgorithmService
             $keySuffix = "_{$gene['time_slot_id']}_{$day}";
 
             // Room Check
-            if (($rooms[$gene['room_id'] . $keySuffix] ?? 0) > 0) return true;
+            if (($rooms[$gene['room_id'] . $keySuffix] ?? 0) > 0)
+                return true;
 
             $subject = $this->subjectsKeyed[$gene['setup_subject_id']] ?? null;
             if ($subject) {
                 // Faculty Check
                 $assignment = $subject->facultyAssignments->first();
-                if ($assignment && ($faculty[$assignment->user_id . $keySuffix] ?? 0) > 0) return true;
+                if ($assignment && ($faculty[$assignment->user_id . $keySuffix] ?? 0) > 0)
+                    return true;
 
                 // Section Check
-                if (($sections[$subject->year_level_id . '_' . ($subject->block_number ?? 1) . $keySuffix] ?? 0) > 0) return true;
+                if (($sections[$subject->year_level_id . '_' . ($subject->block_number ?? 1) . $keySuffix] ?? 0) > 0)
+                    return true;
 
                 // Base Subject Check
-                if (($baseSub[$subject->subject_id . $keySuffix] ?? 0) > 0) return true;
+                if (($baseSub[$subject->subject_id . $keySuffix] ?? 0) > 0)
+                    return true;
+
+                // Faculty Day Off Check
+                if (isset($this->facultyDayOffMap[$assignment->user_id])) {
+                    if (strtolower($day) === $this->facultyDayOffMap[$assignment->user_id]) {
+                        $offTime = $this->facultyDayOffTimeMap[$assignment->user_id] ?? 'wholeday';
+                        if ($offTime === 'wholeday') {
+                            return true;
+                        }
+
+                        $slot = $this->timeSlotsById[$gene['time_slot_id']] ?? null;
+                        if ($slot) {
+                            $period = $this->getTimePeriodFromSlot($slot);
+                            if ($period === $offTime) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Faculty Time preference check
+                if (isset($this->facultyTimePeriodMap[$assignment->user_id])) {
+                    $slot = $this->timeSlotsById[$gene['time_slot_id']] ?? null;
+                    if ($slot) {
+                        $period = $this->getTimePeriodFromSlot($slot);
+                        if ($period && $period !== $this->facultyTimePeriodMap[$assignment->user_id]) {
+                            return true;
+                        }
+                    }
+                }
             }
         }
 

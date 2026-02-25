@@ -10,6 +10,7 @@ use Inertia\Response;
 
 class BuildingController extends Controller
 {
+
     /**
      * Display a listing of buildings.
      */
@@ -55,9 +56,11 @@ class BuildingController extends Controller
      */
     public function show(Building $building): Response
     {
-        $building->load(['rooms' => function ($query) {
-            $query->orderBy('name');
-        }]);
+        $building->load([
+            'rooms' => function ($query) {
+                $query->orderBy('name');
+            }
+        ]);
 
         return Inertia::render('admin/buildings/show', [
             'building' => $building,
@@ -98,7 +101,7 @@ class BuildingController extends Controller
     public function destroy(Building $building)
     {
         $roomCount = $building->rooms()->count();
-        
+
         if ($roomCount > 0) {
             return back()->with('error', "Cannot delete building. It has {$roomCount} rooms assigned.");
         }
@@ -115,9 +118,11 @@ class BuildingController extends Controller
     public function apiIndex()
     {
         return Building::active()
-            ->with(['rooms' => function ($query) {
-                $query->where('is_active', true)->orderBy('name');
-            }])
+            ->with([
+                'rooms' => function ($query) {
+                    $query->where('is_active', true)->orderBy('name');
+                }
+            ])
             ->orderBy('code')
             ->get();
     }

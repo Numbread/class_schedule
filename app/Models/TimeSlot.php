@@ -31,6 +31,19 @@ class TimeSlot extends Model
     }
 
     /**
+     * Get the display time for this time slot.
+     */
+    public function getDisplayTimeAttribute(): string
+    {
+        if ($this->start_time && $this->end_time) {
+            $start = $this->start_time->format('g:i A');
+            $end = $this->end_time->format('g:i A');
+            return "{$start} - {$end}";
+        }
+        return 'N/A';
+    }
+
+    /**
      * Scope to get active time slots.
      */
     public function scopeActive($query)

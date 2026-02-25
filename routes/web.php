@@ -94,7 +94,8 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
 
                 // Format entries for display
                 $formatTime = function ($timeString) {
-                    if (!$timeString) return '';
+                    if (!$timeString)
+                        return '';
                     try {
                         return \Carbon\Carbon::parse($timeString)->format('g:i A');
                     } catch (\Exception $e) {
@@ -192,11 +193,13 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::patch('rooms/{room}/toggle-status', [RoomController::class, 'toggleStatus'])
         ->name('rooms.toggle-status');
 
-    // Building Management Routes
-    Route::resource('buildings', BuildingController::class);
-    Route::get('buildings/{building}/rooms', [BuildingController::class, 'rooms'])->name('buildings.rooms');
-    Route::post('buildings/{building}/assign-rooms', [BuildingController::class, 'assignRooms'])->name('buildings.assign-rooms');
-    Route::delete('buildings/{building}/rooms/{room}', [BuildingController::class, 'unassignRoom'])->name('buildings.unassign-room');
+    // Building Management Routes (Admin only)
+    Route::middleware('admin')->group(function () {
+        Route::resource('buildings', BuildingController::class);
+        Route::get('buildings/{building}/rooms', [BuildingController::class, 'rooms'])->name('buildings.rooms');
+        Route::post('buildings/{building}/assign-rooms', [BuildingController::class, 'assignRooms'])->name('buildings.assign-rooms');
+        Route::delete('buildings/{building}/rooms/{room}', [BuildingController::class, 'unassignRoom'])->name('buildings.unassign-room');
+    });
     Route::get('api/buildings', [BuildingController::class, 'apiIndex'])->name('api.buildings');
 
     // Schedule Export
@@ -216,15 +219,17 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::patch('time-slots/{timeSlot}/toggle-status', [\App\Http\Controllers\TimeSlotController::class, 'toggleStatus'])
         ->name('time-slots.toggle-status');
 
-    // User Management Routes (Admin only - middleware can be added later)
-    Route::get('users', [UserController::class, 'index'])->name('users.index');
-    Route::post('users', [UserController::class, 'store'])->name('users.store');
-    Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update');
-    Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
-    Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
-        ->name('users.toggle-status');
-    Route::post('users/{user}/approve', [UserController::class, 'approve'])->name('users.approve');
-    Route::post('users/{user}/reject', [UserController::class, 'reject'])->name('users.reject');
+    // User Management Routes (Admin only)
+    Route::middleware('admin')->group(function () {
+        Route::get('users', [UserController::class, 'index'])->name('users.index');
+        Route::post('users', [UserController::class, 'store'])->name('users.store');
+        Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update');
+        Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+        Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
+            ->name('users.toggle-status');
+        Route::post('users/{user}/approve', [UserController::class, 'approve'])->name('users.approve');
+        Route::post('users/{user}/reject', [UserController::class, 'reject'])->name('users.reject');
+    });
 
     // User Manual Page
     Route::get('user-manual', function () {
@@ -273,6 +278,11 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::get('/{setup}/export-csv', [AcademicSetupController::class, 'exportCsv'])->name('export-csv');
         Route::post('/{setup}/validate-import', [AcademicSetupController::class, 'validateImport'])->name('validate-import');
         Route::post('/{setup}/import-csv', [AcademicSetupController::class, 'importCsv'])->name('import-csv');
+
+        // New routes for adding programs
+        Route::get('/{setup}/compatible-courses', [AcademicSetupController::class, 'getCompatibleCourses'])->name('compatible-courses');
+        Route::get('/{setup}/subjects/{course}', [AcademicSetupController::class, 'getCourseSubjects'])->name('course-subjects');
+        Route::post('/{setup}/add-programs', [AcademicSetupController::class, 'addPrograms'])->name('add-programs');
     });
 
     // Scheduling Routes

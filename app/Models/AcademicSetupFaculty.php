@@ -18,6 +18,7 @@ class AcademicSetupFaculty extends Model
         'user_id',
         'max_units',
         'preferred_day_off',
+        'preferred_day_off_time',
         'preferred_time_period',
         'is_active',
     ];

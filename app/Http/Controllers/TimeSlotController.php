@@ -77,7 +77,7 @@ class TimeSlotController extends Controller
         // Generate name if not provided
         $name = $request->name;
         if (empty($name)) {
-            $name = $start->format('H:i') . ' - ' . $end->format('H:i');
+            $name = $start->format('g:i A') . ' - ' . $end->format('g:i A');
         }
 
         TimeSlot::create([
@@ -114,7 +114,7 @@ class TimeSlotController extends Controller
         // Generate name if not provided
         $name = $request->name;
         if (empty($name)) {
-            $name = $start->format('H:i') . ' - ' . $end->format('H:i');
+            $name = $start->format('g:i A') . ' - ' . $end->format('g:i A');
         }
 
         $timeSlot->update([

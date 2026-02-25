@@ -46,7 +46,7 @@ class ScheduleEntry extends Model
             return "{$start} - {$end}";
         }
 
-        return $this->timeSlot?->name ?? 'N/A';
+        return $this->timeSlot?->display_time ?? 'N/A';
     }
 
     /**
@@ -112,7 +112,7 @@ class ScheduleEntry extends Model
     {
         $setupSubject = $this->academicSetupSubject;
         $blockNumber = $setupSubject->block_number ?? 1;
-        
+
         return [
             'subject_code' => $setupSubject->subject->code ?? 'N/A',
             'subject_name' => $setupSubject->subject->name ?? 'N/A',
@@ -121,7 +121,7 @@ class ScheduleEntry extends Model
             'block_display' => "Block {$blockNumber}",
             'room_name' => $this->room->name ?? 'N/A',
             'time' => $this->display_time,
-            'time_slot_time' => $this->timeSlot->name ?? 'N/A',
+            'time_slot_time' => $this->timeSlot->display_time ?? 'N/A',
             'custom_start_time' => $this->formatted_custom_start_time,
             'custom_end_time' => $this->formatted_custom_end_time,
             'session_group_id' => $this->session_group_id,

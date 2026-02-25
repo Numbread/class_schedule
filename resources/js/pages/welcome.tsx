@@ -26,7 +26,7 @@ export default function Welcome({
             icon: Calendar,
             title: 'Smart Scheduling',
             description:
-                'Automatically generate conflict-free class schedules optimized for faculty, rooms, and student needs.',
+                'Automatically generate conflict-free class schedules optimized for faculty, rooms, and student needs.rkkkkk',
         },
         {
             icon: BookOpen,
@@ -84,18 +84,18 @@ export default function Welcome({
                         </div>
 
                         <div className="flex items-center gap-3">
-                        {auth.user ? (
+                            {auth.user ? (
                                 <Button
                                     asChild
                                     className="bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-500/25 hover:from-amber-700 hover:to-amber-800"
                                 >
                                     <Link href={dashboard()}>
                                         <LayoutGrid className="mr-2 h-4 w-4" />
-                                Dashboard
-                            </Link>
+                                        Dashboard
+                                    </Link>
                                 </Button>
-                        ) : (
-                            <>
+                            ) : (
+                                <>
                                     <Button
                                         variant="ghost"
                                         asChild
@@ -110,9 +110,9 @@ export default function Welcome({
                                         >
                                             <Link href={register()}>Get Started</Link>
                                         </Button>
-                                )}
-                            </>
-                        )}
+                                    )}
+                                </>
+                            )}
                         </div>
                     </nav>
                 </header>
@@ -139,7 +139,7 @@ export default function Welcome({
                                         Class Scheduling
                                     </span>{' '}
                                     Made Simple
-                            </h1>
+                                </h1>
 
                                 <p className="mx-auto mb-8 max-w-2xl text-lg text-gray-600 lg:mx-0 dark:text-gray-400">
                                     Streamline your academic scheduling with our intelligent
@@ -223,13 +223,12 @@ export default function Welcome({
                                                             }).map((_, j) => (
                                                                 <div
                                                                     key={j}
-                                                                    className={`h-6 flex-1 rounded ${
-                                                                        j % 3 === 0
-                                                                            ? 'bg-amber-500/60'
-                                                                            : j % 3 === 1
-                                                                              ? 'bg-[#722F37]/40'
-                                                                              : 'bg-amber-300/40'
-                                                                    }`}
+                                                                    className={`h-6 flex-1 rounded ${j % 3 === 0
+                                                                        ? 'bg-amber-500/60'
+                                                                        : j % 3 === 1
+                                                                            ? 'bg-[#722F37]/40'
+                                                                            : 'bg-amber-300/40'
+                                                                        }`}
                                                                 />
                                                             ))}
                                                         </div>
@@ -313,7 +312,7 @@ export default function Welcome({
                                 Everything You Need for{' '}
                                 <span className="text-amber-600 dark:text-amber-400">
                                     Academic Scheduling
-                                    </span>
+                                </span>
                             </h2>
                             <p className="mx-auto max-w-2xl text-lg text-gray-600 dark:text-gray-400">
                                 Comprehensive tools designed specifically for university class
@@ -405,7 +404,7 @@ export default function Welcome({
                                 reserved.
                             </p>
                         </div>
-                </div>
+                    </div>
                 </footer>
             </div>
         </>

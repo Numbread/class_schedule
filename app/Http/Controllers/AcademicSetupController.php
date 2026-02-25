@@ -199,8 +199,8 @@ class AcademicSetupController extends Controller
                     ->orWhereNull('course_id')
                     // Include subjects shared with these courses (via many-to-many)
                     ->orWhereHas('courses', function ($q) use ($courseIds) {
-                        $q->whereIn('courses.id', $courseIds);
-                    });
+                    $q->whereIn('courses.id', $courseIds);
+                });
             })
             ->orderBy('code')
             ->get();
@@ -223,9 +223,11 @@ class AcademicSetupController extends Controller
 
         // Get buildings with their rooms for facility selection
         $buildings = Building::active()
-            ->with(['rooms' => function ($q) {
-                $q->where('is_active', true)->orderBy('name');
-            }])
+            ->with([
+                'rooms' => function ($q) {
+                    $q->where('is_active', true)->orderBy('name');
+                }
+            ])
             ->orderBy('code')
             ->get();
 
@@ -411,6 +413,7 @@ class AcademicSetupController extends Controller
             'faculty.*.user_id' => ['required', 'exists:users,id'],
             'faculty.*.max_units' => ['nullable', 'integer', 'min:1', 'max:60'],
             'faculty.*.preferred_day_off' => ['nullable', Rule::in(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])],
+            'faculty.*.preferred_day_off_time' => ['nullable', Rule::in(['morning', 'afternoon', 'wholeday'])],
             'faculty.*.preferred_time_period' => ['nullable', Rule::in(['morning', 'afternoon'])],
         ], [
             'faculty.*.max_units.min' => 'Max units must be at least 1.',
@@ -429,6 +432,7 @@ class AcademicSetupController extends Controller
                     'user_id' => $facultyData['user_id'],
                     'max_units' => $facultyData['max_units'] ?? 24,
                     'preferred_day_off' => $facultyData['preferred_day_off'] ?? null,
+                    'preferred_day_off_time' => $facultyData['preferred_day_off_time'] ?? null,
                     'preferred_time_period' => $facultyData['preferred_time_period'] ?? null,
                 ]);
             }
@@ -659,7 +663,8 @@ class AcademicSetupController extends Controller
                 'Faculty Email',
                 'Faculty Name',
                 'Max Units',
-                'Preferred Day Off',
+                'Preferred No class',
+                'Preferred No class Time',
                 'Preferred Time Period',
             ]);
 
@@ -669,6 +674,7 @@ class AcademicSetupController extends Controller
                     $faculty->user ? ($faculty->user->lname . ', ' . $faculty->user->fname) : 'Unknown',
                     $faculty->max_units,
                     ucfirst($faculty->preferred_day_off ?? 'None'),
+                    ucfirst($faculty->preferred_day_off_time ?? 'Wholeday'),
                     ucfirst($faculty->preferred_time_period ?? 'None'),
                 ]);
             }
@@ -807,7 +813,8 @@ class AcademicSetupController extends Controller
             'Faculty Email',
             'Faculty Name',
             'Max Units',
-            'Preferred Day Off',
+            'Preferred No class',
+            'Preferred No class Time',
             'Preferred Time Period',
         ]);
 
@@ -817,6 +824,7 @@ class AcademicSetupController extends Controller
                 $faculty->user ? ($faculty->user->lname . ', ' . $faculty->user->fname) : 'Unknown',
                 $faculty->max_units,
                 ucfirst($faculty->preferred_day_off ?? 'None'),
+                ucfirst($faculty->preferred_day_off_time ?? 'Wholeday'),
                 ucfirst($faculty->preferred_time_period ?? 'None'),
             ]);
         }
@@ -1028,7 +1036,8 @@ class AcademicSetupController extends Controller
 
             // Import faculty pool first
             foreach ($data['faculty'] as $row) {
-                if (empty($row['email'])) continue;
+                if (empty($row['email']))
+                    continue;
 
                 $user = $existingFaculty->get($row['email']);
                 if (!$user) {
@@ -1046,8 +1055,9 @@ class AcademicSetupController extends Controller
                         'academic_setup_id' => $setup->id,
                         'user_id' => $user->id,
                         'max_units' => $row['max_units'] ?? 24,
-                        'preferred_day_off' => strtolower($row['day_off']) !== 'none' ? strtolower($row['day_off']) : null,
-                        'preferred_time_period' => strtolower($row['time_period']) !== 'none' ? strtolower($row['time_period']) : null,
+                        'preferred_day_off' => strtolower($row['day_off'] ?? 'none') !== 'none' ? strtolower($row['day_off'] ?? 'none') : null,
+                        'preferred_day_off_time' => strtolower($row['no_class_time'] ?? 'wholeday'),
+                        'preferred_time_period' => strtolower($row['time_period'] ?? 'none') !== 'none' ? strtolower($row['time_period'] ?? 'none') : null,
                     ]);
                     $importedFaculty++;
                 }
@@ -1328,11 +1338,16 @@ class AcademicSetupController extends Controller
                     $key = strtolower(trim($row[0]));
                     $value = trim($row[1] ?? '');
 
-                    if ($key === 'department') $info['department'] = $value;
-                    if ($key === 'courses') $info['courses'] = $value;
-                    if ($key === 'curriculum') $info['curriculum'] = $value;
-                    if ($key === 'academic year') $info['academic_year'] = $value;
-                    if ($key === 'semester') $info['semester'] = $value;
+                    if ($key === 'department')
+                        $info['department'] = $value;
+                    if ($key === 'courses')
+                        $info['courses'] = $value;
+                    if ($key === 'curriculum')
+                        $info['curriculum'] = $value;
+                    if ($key === 'academic year')
+                        $info['academic_year'] = $value;
+                    if ($key === 'semester')
+                        $info['semester'] = $value;
                 }
             }
             fclose($handle);
@@ -1569,7 +1584,8 @@ class AcademicSetupController extends Controller
 
             // Import faculty pool first
             foreach ($data['faculty'] as $row) {
-                if (empty($row['email'])) continue;
+                if (empty($row['email']))
+                    continue;
 
                 $user = $existingFaculty->get($row['email']);
                 if (!$user) {
@@ -1748,5 +1764,164 @@ class AcademicSetupController extends Controller
                 'message' => 'Error importing: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Get courses that are not yet in the setup but are in the same department.
+     */
+    public function getCompatibleCourses(AcademicSetup $setup)
+    {
+        $existingCourseIds = $setup->courses->pluck('id')->toArray();
+        if (empty($existingCourseIds) && $setup->course_id) {
+            $existingCourseIds = [$setup->course_id];
+        }
+
+        $courses = Course::where('department_id', $setup->department_id)
+            ->where('is_active', true)
+            ->whereNotIn('id', $existingCourseIds)
+            ->orderBy('code')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'courses' => $courses,
+        ]);
+    }
+
+    /**
+     * Add new programs (courses) to an existing setup and pre-populate subjects.
+     */
+    public function addPrograms(AcademicSetup $setup, Request $request)
+    {
+        $validated = $request->validate([
+            'course_ids' => ['required', 'array', 'min:1'],
+            'course_ids.*' => ['exists:courses,id'],
+            'selection_mode' => ['required', 'in:year,subject'],
+            'block_counts' => ['required', 'array'], // if year: ['1st' => 2], if subject: [subj_id => 2]
+        ]);
+
+        $newCourseIds = $validated['course_ids'];
+        $blockCounts = $validated['block_counts'];
+        $selectionMode = $validated['selection_mode'];
+
+        // 1. Attach new courses
+        $setup->courses()->attach($newCourseIds);
+
+        // 2. Ensure year levels exist and expand if needed
+        $newCourses = Course::whereIn('id', $newCourseIds)->get();
+        $maxNewYears = $newCourses->max('years') ?? 4;
+        $currentMaxYears = $setup->yearLevels()->count();
+
+        if ($maxNewYears > $currentMaxYears) {
+            $yearLevelNames = ['1st', '2nd', '3rd', '4th', '5th'];
+            for ($i = $currentMaxYears; $i < min($maxNewYears, 5); $i++) {
+                $setup->yearLevels()->create([
+                    'year_level' => $yearLevelNames[$i],
+                    'section_count' => 1,
+                    'expected_students' => 40,
+                    'is_configured' => false,
+                ]);
+            }
+        }
+
+        // 3. Populate subjects from latest prospectuses
+        $addedSubjectsCount = 0;
+        $addedBlocksCount = 0;
+
+        foreach ($newCourses as $course) {
+            // Get the latest active prospectus for this course
+            $prospectus = CurriculumProspectus::where('course_id', $course->id)
+                ->where('is_active', true)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (!$prospectus)
+                continue;
+
+            // Get subjects for this semester
+            $subjects = $prospectus->subjects()
+                ->wherePivot('semester', $setup->semester)
+                ->get();
+
+            foreach ($subjects as $subject) {
+                $yearLevelName = $subject->pivot->year_level;
+
+                // Determine block count based on selection mode
+                if ($selectionMode === 'year') {
+                    $blockCount = (int) ($blockCounts[$yearLevelName] ?? 1);
+                } else {
+                    $blockCount = (int) ($blockCounts[$subject->id] ?? 1);
+                }
+
+                $yearLevel = $setup->yearLevels()->where('year_level', $yearLevelName)->first();
+                if (!$yearLevel)
+                    continue;
+
+                // Create blocks for this subject
+                for ($blockNum = 1; $blockNum <= $blockCount; $blockNum++) {
+                    // Check if this subject-block already exists
+                    $exists = AcademicSetupSubject::where('academic_setup_id', $setup->id)
+                        ->where('year_level_id', $yearLevel->id)
+                        ->where('subject_id', $subject->id)
+                        ->where('block_number', $blockNum)
+                        ->whereHas('courses', function ($q) use ($course) {
+                            $q->where('courses.id', $course->id);
+                        })
+                        ->exists();
+
+                    if (!$exists) {
+                        $setupSubject = AcademicSetupSubject::create([
+                            'academic_setup_id' => $setup->id,
+                            'year_level_id' => $yearLevel->id,
+                            'subject_id' => $subject->id,
+                            'course_id' => $course->id,
+                            'block_number' => $blockNum,
+                            'expected_students' => $yearLevel->expected_students,
+                            'needs_lab' => $subject->lab_hours > 0,
+                        ]);
+
+                        $setupSubject->courses()->attach($course->id);
+                        $addedBlocksCount++;
+                    }
+                }
+                $addedSubjectsCount++;
+            }
+        }
+
+        return redirect()->back()->with('success', "Successfully added " . count($newCourseIds) . " programs with {$addedSubjectsCount} subjects and {$addedBlocksCount} blocks.");
+    }
+    /**
+     * Get subjects for a course from its latest active prospectus.
+     */
+    public function getCourseSubjects(AcademicSetup $setup, Course $course)
+    {
+        $prospectus = CurriculumProspectus::where('course_id', $course->id)
+            ->where('is_active', true)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$prospectus) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active prospectus found for this course.',
+            ], 404);
+        }
+
+        $subjects = $prospectus->subjects()
+            ->wherePivot('semester', $setup->semester)
+            ->get()
+            ->map(function ($subject) {
+                return [
+                    'id' => $subject->id,
+                    'code' => $subject->code,
+                    'name' => $subject->name,
+                    'year_level' => $subject->pivot->year_level,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'subjects' => $subjects,
+        ]);
     }
 }

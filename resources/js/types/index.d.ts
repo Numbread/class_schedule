@@ -339,6 +339,7 @@ export interface AcademicSetupFaculty {
     user_id: number;
     max_units: number;
     preferred_day_off: string | null; // 'monday', 'tuesday', etc.
+    preferred_day_off_time: 'morning' | 'afternoon' | 'wholeday' | null;
     preferred_time_period: 'morning' | 'afternoon' | null;
     is_active: boolean;
     user?: User;

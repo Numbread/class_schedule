@@ -13,7 +13,7 @@ import {
     Trash2,
     Upload,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ChangeEvent, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ConfirmModal } from '@/components/ui/form-modal';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import {
     Select,
@@ -43,6 +44,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Table,
     TableBody,
@@ -129,7 +131,122 @@ export default function AcademicSetupIndex({ setups, academicYears, filters }: P
         createMissingSubjects: false,
     });
 
+    // Add program dialog state
+    const [addProgramDialog, setAddProgramDialog] = useState<{
+        open: boolean;
+        setup: AcademicSetup | null;
+        compatibleCourses: any[];
+        loading: boolean;
+        selectedCourseId: string;
+        selectionMode: 'year' | 'subject';
+        subjects: any[];
+        loadingSubjects: boolean;
+        blockCounts: Record<string, number>;
+        submitting: boolean;
+    }>({
+        open: false,
+        setup: null,
+        compatibleCourses: [],
+        loading: false,
+        selectedCourseId: '',
+        selectionMode: 'year',
+        subjects: [],
+        loadingSubjects: false,
+        blockCounts: {
+            '1st': 1,
+            '2nd': 1,
+            '3rd': 1,
+            '4th': 1,
+            '5th': 1,
+        },
+        submitting: false,
+    });
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const openAddProgramDialog = async (setup: AcademicSetup) => {
+        setAddProgramDialog(prev => ({
+            ...prev,
+            open: true,
+            setup,
+            loading: true,
+            selectedCourseId: '',
+            selectionMode: 'year',
+            subjects: [],
+            blockCounts: {
+                '1st': 1, '2nd': 1, '3rd': 1, '4th': 1, '5th': 1,
+            }
+        }));
+        try {
+            const response = await fetch(`/academic-setup/${setup.id}/compatible-courses`);
+            const data = await response.json();
+            if (data.success) {
+                setAddProgramDialog(prev => ({
+                    ...prev,
+                    compatibleCourses: data.courses,
+                    loading: false
+                }));
+            }
+        } catch (error) {
+            console.error('Failed to fetch compatible courses', error);
+            setAddProgramDialog(prev => ({ ...prev, loading: false }));
+        }
+    };
+
+    const fetchSubjects = async (courseId: string) => {
+        if (!addProgramDialog.setup || !courseId) return;
+
+        setAddProgramDialog(prev => ({ ...prev, loadingSubjects: true, subjects: [], blockCounts: {} }));
+        try {
+            const response = await fetch(`/academic-setup/${addProgramDialog.setup.id}/subjects/${courseId}`);
+            const data = await response.json();
+            if (data.success) {
+                const initialCounts: Record<string, number> = {};
+                data.subjects.forEach((s: any) => { initialCounts[s.id] = 1; });
+
+                setAddProgramDialog(prev => ({
+                    ...prev,
+                    subjects: data.subjects,
+                    blockCounts: prev.selectionMode === 'subject' ? initialCounts : {
+                        '1st': 1, '2nd': 1, '3rd': 1, '4th': 1, '5th': 1,
+                    },
+                    loadingSubjects: false
+                }));
+            }
+        } catch (error) {
+            console.error('Failed to fetch subjects', error);
+            setAddProgramDialog(prev => ({ ...prev, loadingSubjects: false }));
+        }
+    };
+
+    const handleAddProgramSubmit = () => {
+        if (!addProgramDialog.setup || !addProgramDialog.selectedCourseId) return;
+
+        setAddProgramDialog(prev => ({ ...prev, submitting: true }));
+        router.post(`/academic-setup/${addProgramDialog.setup.id}/add-programs`, {
+            course_ids: [parseInt(addProgramDialog.selectedCourseId)],
+            selection_mode: addProgramDialog.selectionMode,
+            block_counts: addProgramDialog.blockCounts,
+        }, {
+            onSuccess: () => {
+                setAddProgramDialog({
+                    open: false,
+                    setup: null,
+                    compatibleCourses: [],
+                    loading: false,
+                    selectedCourseId: '',
+                    selectionMode: 'year',
+                    subjects: [],
+                    loadingSubjects: false,
+                    blockCounts: {
+                        '1st': 1, '2nd': 1, '3rd': 1, '4th': 1, '5th': 1,
+                    },
+                    submitting: false,
+                });
+            },
+            onFinish: () => setAddProgramDialog(prev => ({ ...prev, submitting: false })),
+        });
+    };
 
     const handleFilterChange = (key: string, value: string) => {
         const newFilters = { ...filters, [key]: value };
@@ -578,6 +695,12 @@ export default function AcademicSetupIndex({ setups, academicYears, filters }: P
                                                             </Link>
                                                         </DropdownMenuItem>
                                                     )}
+                                                    <DropdownMenuItem
+                                                        onClick={() => openAddProgramDialog(setup)}
+                                                    >
+                                                        <Plus className="mr-2 h-4 w-4" />
+                                                        Add Program
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem
                                                         className="text-destructive"
@@ -867,6 +990,174 @@ export default function AcademicSetupIndex({ setups, academicYears, filters }: P
                                 Create Setup & Import
                             </Button>
                         )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Program Dialog */}
+            <Dialog
+                open={addProgramDialog.open}
+                onOpenChange={(open) => setAddProgramDialog(prev => ({ ...prev, open }))}
+            >
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle>Add Program to Setup</DialogTitle>
+                        <DialogDescription>
+                            Select a program to add to this academic setup and specify block counts.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {addProgramDialog.loading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Select Program</Label>
+                                <Select
+                                    value={addProgramDialog.selectedCourseId}
+                                    onValueChange={(value) => {
+                                        setAddProgramDialog(prev => ({ ...prev, selectedCourseId: value }));
+                                        fetchSubjects(value);
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a course" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {addProgramDialog.compatibleCourses.map(course => (
+                                            <SelectItem key={course.id} value={course.id.toString()}>
+                                                {course.code} - {course.name}
+                                            </SelectItem>
+                                        ))}
+                                        {addProgramDialog.compatibleCourses.length === 0 && (
+                                            <SelectItem value="none" disabled>No compatible courses found</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {addProgramDialog.selectedCourseId && (
+                                <Tabs
+                                    value={addProgramDialog.selectionMode}
+                                    onValueChange={(val) => setAddProgramDialog(prev => ({
+                                        ...prev,
+                                        selectionMode: val as 'year' | 'subject',
+                                        blockCounts: val === 'year' ? {
+                                            '1st': 1, '2nd': 1, '3rd': 1, '4th': 1, '5th': 1,
+                                        } : Object.fromEntries(prev.subjects.map(s => [s.id, 1]))
+                                    }))}
+                                >
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Label>Block Count Strategy</Label>
+                                        <TabsList className="grid grid-cols-2 w-[240px]">
+                                            <TabsTrigger value="year">By Year Level</TabsTrigger>
+                                            <TabsTrigger value="subject">By Subject</TabsTrigger>
+                                        </TabsList>
+                                    </div>
+
+                                    {addProgramDialog.selectionMode === 'year' ? (
+                                        <div className="space-y-2">
+                                            <div className="grid grid-cols-2 gap-4 border rounded-md p-4 bg-muted/30">
+                                                {['1st', '2nd', '3rd', '4th', '5th'].map(year => (
+                                                    <div key={year} className="flex items-center justify-between gap-2">
+                                                        <span className="text-sm font-medium">{year} Year</span>
+                                                        <Input
+                                                            type="number"
+                                                            min="1"
+                                                            max="20"
+                                                            className="w-20"
+                                                            value={addProgramDialog.blockCounts[year] || 1}
+                                                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                                                const val = parseInt(e.target.value);
+                                                                setAddProgramDialog(prev => ({
+                                                                    ...prev,
+                                                                    blockCounts: {
+                                                                        ...prev.blockCounts,
+                                                                        [year]: isNaN(val) ? 1 : val
+                                                                    }
+                                                                }));
+                                                            }}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {addProgramDialog.loadingSubjects ? (
+                                                <div className="flex items-center justify-center py-4">
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                                                    <span className="text-xs text-muted-foreground">Loading subjects...</span>
+                                                </div>
+                                            ) : (
+                                                <div className="border rounded-md max-h-[250px] overflow-y-auto">
+                                                    <div className="p-0 border-b bg-muted/30 grid grid-cols-12 text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-4 py-2">
+                                                        <div className="col-span-3">Code</div>
+                                                        <div className="col-span-7">Subject</div>
+                                                        <div className="col-span-2 text-right">Blocks</div>
+                                                    </div>
+                                                    {addProgramDialog.subjects.length > 0 ? (
+                                                        addProgramDialog.subjects.map(subject => (
+                                                            <div key={subject.id} className="grid grid-cols-12 items-center gap-2 px-4 py-2 border-b last:border-0 hover:bg-muted/50">
+                                                                <div className="col-span-3 text-xs font-mono">{subject.code}</div>
+                                                                <div className="col-span-7">
+                                                                    <div className="text-xs font-medium truncate">{subject.name}</div>
+                                                                    <div className="text-[10px] text-muted-foreground">{subject.year_level} Year</div>
+                                                                </div>
+                                                                <div className="col-span-2 flex justify-end">
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="1"
+                                                                        max="20"
+                                                                        className="w-16 h-8 text-xs"
+                                                                        value={addProgramDialog.blockCounts[subject.id] || 1}
+                                                                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                                                            const val = parseInt(e.target.value);
+                                                                            setAddProgramDialog(prev => ({
+                                                                                ...prev,
+                                                                                blockCounts: {
+                                                                                    ...prev.blockCounts,
+                                                                                    [subject.id]: isNaN(val) ? 1 : val
+                                                                                }
+                                                                            }));
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-4 text-center text-sm text-muted-foreground">
+                                                            No subjects found for the current semester.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </Tabs>
+                            )}
+
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                                Specifying blocks will automatically populate subjects from the latest prospectus.
+                            </p>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setAddProgramDialog(prev => ({ ...prev, open: false }))}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleAddProgramSubmit}
+                            disabled={!addProgramDialog.selectedCourseId || addProgramDialog.submitting || addProgramDialog.loading}
+                        >
+                            {addProgramDialog.submitting ? 'Adding...' : 'Add Program'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

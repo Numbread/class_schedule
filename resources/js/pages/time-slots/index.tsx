@@ -66,6 +66,18 @@ const DAY_GROUP_LABELS: Record<string, string> = {
     SUN: 'Sunday',
 };
 
+const formatTime = (timeStr: string | null): string => {
+    if (!timeStr) return '';
+    try {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    } catch {
+        return timeStr;
+    }
+};
+
 export default function TimeSlotsIndex({ timeSlots, filters, dayGroups }: Props) {
     const { auth } = usePage<{ auth: { user: User } }>().props;
     const isScheduler = auth.user.user_type === 'scheduler';
@@ -110,15 +122,15 @@ export default function TimeSlotsIndex({ timeSlots, filters, dayGroups }: Props)
 
     const openEditModal = (timeSlot: TimeSlot) => {
         // Parse time strings to HH:mm format properly if they come with seconds
-        const formatTime = (timeStr: string) => {
+        const formatTimeForInput = (timeStr: string) => {
             if (!timeStr) return '';
             return timeStr.substring(0, 5);
         };
 
         form.setData({
             day_group: timeSlot.day_group,
-            start_time: formatTime(timeSlot.start_time),
-            end_time: formatTime(timeSlot.end_time),
+            start_time: formatTimeForInput(timeSlot.start_time),
+            end_time: formatTimeForInput(timeSlot.end_time),
             priority: timeSlot.priority,
             name: timeSlot.name,
             is_active: timeSlot.is_active,
@@ -189,8 +201,8 @@ export default function TimeSlotsIndex({ timeSlots, filters, dayGroups }: Props)
             priority <= 5
                 ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20'
                 : priority <= 15
-                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20'
-                  : 'bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20';
+                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20'
+                    : 'bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20';
 
         return (
             <Badge variant="outline" className={colors}>
@@ -355,7 +367,7 @@ export default function TimeSlotsIndex({ timeSlots, filters, dayGroups }: Props)
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                                                    {slot.start_time ? slot.start_time.substring(0, 5) : ''} - {slot.end_time ? slot.end_time.substring(0, 5) : ''}
+                                                    {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
                                                 </TableCell>
                                                 <TableCell className="px-4 py-3 text-center text-sm">
                                                     {slot.duration_minutes} min
@@ -461,30 +473,30 @@ export default function TimeSlotsIndex({ timeSlots, filters, dayGroups }: Props)
                     {/* Time Slot Information */}
                     <div className="space-y-4">
                         <h4 className="text-sm font-medium">Time Slot Information</h4>
-                        
+
                         <div className="space-y-2">
-                             <Label htmlFor="day_group">
-                                 Day Group <span className="text-destructive">*</span>
-                             </Label>
-                             <Select
-                                 value={form.data.day_group}
-                                 onValueChange={(value) =>
-                                     form.setData('day_group', value as DayGroup)
-                                 }
-                             >
-                                 <SelectTrigger>
-                                     <SelectValue placeholder="Select day group" />
-                                 </SelectTrigger>
-                                 <SelectContent>
-                                     {dayGroups.map((group) => (
-                                         <SelectItem key={group} value={group}>
-                                             {group} - {DAY_GROUP_LABELS[group] || group}
-                                         </SelectItem>
-                                     ))}
-                                 </SelectContent>
-                             </Select>
-                             <InputError message={form.errors.day_group} />
-                         </div>
+                            <Label htmlFor="day_group">
+                                Day Group <span className="text-destructive">*</span>
+                            </Label>
+                            <Select
+                                value={form.data.day_group}
+                                onValueChange={(value) =>
+                                    form.setData('day_group', value as DayGroup)
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select day group" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {dayGroups.map((group) => (
+                                        <SelectItem key={group} value={group}>
+                                            {group} - {DAY_GROUP_LABELS[group] || group}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={form.errors.day_group} />
+                        </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">

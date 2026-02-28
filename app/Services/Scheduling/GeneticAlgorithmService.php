@@ -293,15 +293,15 @@ class GeneticAlgorithmService
                 }
 
                 foreach ($slot['days'] as $day) {
-                    $roomKey = "{$roomId}_{$slot['id']}_{$day}";
-                    $facultyKey = $facultyId ? "{$facultyId}_{$slot['id']}_{$day}" : null;
-                    $yearLevelBlockKey = "{$yearLevelId}_{$blockNumber}_{$slot['id']}_{$day}";
+                    $roomKey = "R_{$roomId}_{$slot['id']}_{$day}";
+                    $facultyKey = $facultyId ? "F_{$facultyId}_{$slot['id']}_{$day}" : null;
+                    $sectionKey = "S_{$yearLevelId}_{$blockNumber}_{$slot['id']}_{$day}";
 
                     if (isset($usedRoomTimeSlots[$roomKey]))
                         $conflicts++;
                     if ($facultyKey && isset($usedFacultyTimeSlots[$facultyKey]))
                         $conflicts++;
-                    if (isset($yearLevelBlockTimeSlots[$yearLevelBlockKey]))
+                    if (isset($yearLevelBlockTimeSlots[$sectionKey]))
                         $conflicts++;
 
                     // Faculty Day Off check
@@ -1390,15 +1390,15 @@ class GeneticAlgorithmService
         $facultyId = $subject['faculty_id'];
 
         foreach ($days as $day) {
-            $roomKey = "{$gene['room_id']}_{$gene['time_slot_id']}_{$day}";
-            $facultyKey = $facultyId ? "{$facultyId}_{$gene['time_slot_id']}_{$day}" : null;
-            $yearLevelBlockKey = "{$yearLevelId}_{$blockNumber}_{$gene['time_slot_id']}_{$day}";
+            $roomKey = "R_{$gene['room_id']}_{$gene['time_slot_id']}_{$day}";
+            $facultyKey = $facultyId ? "F_{$facultyId}_{$gene['time_slot_id']}_{$day}" : null;
+            $sectionKey = "S_{$yearLevelId}_{$blockNumber}_{$gene['time_slot_id']}_{$day}";
 
             if (($usedRoomTimeSlots[$roomKey] ?? 0) > 1)
                 return true;
             if ($facultyKey && ($usedFacultyTimeSlots[$facultyKey] ?? 0) > 1)
                 return true;
-            if (($yearLevelBlockTimeSlots[$yearLevelBlockKey] ?? 0) > 1)
+            if (($yearLevelBlockTimeSlots[$sectionKey] ?? 0) > 1)
                 return true;
 
             // Check Faculty Day Off preference
@@ -1568,15 +1568,15 @@ class GeneticAlgorithmService
         $facultyId = $subject['faculty_id'];
 
         foreach ($days as $day) {
-            $roomKey = "{$gene['room_id']}_{$gene['time_slot_id']}_{$day}";
-            $facultyKey = $facultyId ? "{$facultyId}_{$gene['time_slot_id']}_{$day}" : null;
-            $yearLevelBlockKey = "{$yearLevelId}_{$blockNumber}_{$gene['time_slot_id']}_{$day}";
+            $roomKey = "R_{$gene['room_id']}_{$gene['time_slot_id']}_{$day}";
+            $facultyKey = $facultyId ? "F_{$facultyId}_{$gene['time_slot_id']}_{$day}" : null;
+            $sectionKey = "S_{$yearLevelId}_{$blockNumber}_{$gene['time_slot_id']}_{$day}";
 
             if (isset($usedRoomTimeSlots[$roomKey]))
                 $conflicts++;
             if ($facultyKey && isset($usedFacultyTimeSlots[$facultyKey]))
                 $conflicts++;
-            if (isset($yearLevelBlockTimeSlots[$yearLevelBlockKey]))
+            if (isset($yearLevelBlockTimeSlots[$sectionKey]))
                 $conflicts++;
 
             // Faculty Day Off preference
@@ -1830,7 +1830,7 @@ class GeneticAlgorithmService
             $keySuffix = "_{$gene['time_slot_id']}_{$day}";
 
             // Room
-            $roomKey = $gene['room_id'] . $keySuffix;
+            $roomKey = "R_" . $gene['room_id'] . $keySuffix;
             $rooms[$roomKey] = ($rooms[$roomKey] ?? 0) + $diff;
 
             // Subject Info
@@ -1839,16 +1839,16 @@ class GeneticAlgorithmService
                 // Faculty
                 $assignment = $subject->facultyAssignments->first();
                 if ($assignment) {
-                    $fKey = $assignment->user_id . $keySuffix;
+                    $fKey = "F_" . $assignment->user_id . $keySuffix;
                     $faculty[$fKey] = ($faculty[$fKey] ?? 0) + $diff;
                 }
 
                 // Section
-                $sKey = $subject->year_level_id . '_' . ($subject->block_number ?? 1) . $keySuffix;
+                $sKey = "S_" . $subject->year_level_id . '_' . ($subject->block_number ?? 1) . $keySuffix;
                 $sections[$sKey] = ($sections[$sKey] ?? 0) + $diff;
 
                 // Base Subject
-                $bKey = $subject->subject_id . $keySuffix;
+                $bKey = "B_" . $subject->subject_id . $keySuffix;
                 $baseSub[$bKey] = ($baseSub[$bKey] ?? 0) + $diff;
             }
         }
@@ -1867,22 +1867,22 @@ class GeneticAlgorithmService
             $keySuffix = "_{$gene['time_slot_id']}_{$day}";
 
             // Room Check
-            if (($rooms[$gene['room_id'] . $keySuffix] ?? 0) > 0)
+            if (($rooms["R_" . $gene['room_id'] . $keySuffix] ?? 0) > 0)
                 return true;
 
             $subject = $this->subjectsKeyed[$gene['setup_subject_id']] ?? null;
             if ($subject) {
                 // Faculty Check
                 $assignment = $subject->facultyAssignments->first();
-                if ($assignment && ($faculty[$assignment->user_id . $keySuffix] ?? 0) > 0)
+                if ($assignment && ($faculty["F_" . $assignment->user_id . $keySuffix] ?? 0) > 0)
                     return true;
 
                 // Section Check
-                if (($sections[$subject->year_level_id . '_' . ($subject->block_number ?? 1) . $keySuffix] ?? 0) > 0)
+                if (($sections["S_" . $subject->year_level_id . '_' . ($subject->block_number ?? 1) . $keySuffix] ?? 0) > 0)
                     return true;
 
                 // Base Subject Check
-                if (($baseSub[$subject->subject_id . $keySuffix] ?? 0) > 0)
+                if (($baseSub["B_" . $subject->subject_id . $keySuffix] ?? 0) > 0)
                     return true;
 
                 // Faculty Day Off Check
